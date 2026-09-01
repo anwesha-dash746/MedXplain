@@ -1,0 +1,47 @@
+# Local end-to-end stack: FastAPI + Next.js.
+#
+#   docker compose up --build
+#   -> UI  http://localhost:3000
+#   -> API http://localhost:8000/docs
+#
+# Train a model first (scripts/02_train_transformers.py); the api service mounts
+# results/ read-only and will report 503 from /predict until a checkpoint exists.
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      MEDXPLAIN_DEVICE: cpu
+      MEDXPLAIN_DEFAULT_MODEL: clinicalbert
+      MEDXPLAIN_CORS_ORIGINS: "http://localhost:3000"
+      # keep the shared HF cache warm between restarts
+      HF_HOME: /home/app/.cache/huggingface
+    volumes:
+      - ./results:/app/results:ro
+      - ./data/processed:/app/data/processed:ro
+      - hf-cache:/home/app/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 90s
+
+  web:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      MEDXPLAIN_API_URL: http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  hf-cache:

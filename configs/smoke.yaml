@@ -1,0 +1,83 @@
+# Tiny end-to-end configuration for CI and for a first sanity run.
+# Finishes in a couple of minutes on a laptop CPU and exercises every stage;
+# the resulting numbers are meaningless and are meant to be.
+
+experiment:
+  name: smoke
+  primary_outcome: mortality
+  secondary_outcome: readmission_30d
+  seeds: [13]
+  results_dir: results/smoke
+  device: cpu
+
+data:
+  source: synthetic
+  n_notes: 200
+  target_positive_rate: 0.25
+  target_readmission_rate: 0.25
+  label_noise: 0.05
+  processed_path: data/processed/smoke_corpus.parquet
+  splits_path: data/processed/smoke_splits.json
+  mimic_root: null
+
+split: {test_size: 0.2, val_size: 0.2, seed: 42, group_col: subject_id}
+
+preprocess:
+  replace_deid: true
+  collapse_whitespace: true
+  strip_rule_lines: true
+  lowercase: false
+  expand_abbreviations: false
+  max_chars: null
+
+model:
+  backbones: [clinicalbert]
+  max_length: 64
+  pooling: cls
+  dropout: 0.1
+  truncation_strategy: head_tail
+  head_fraction: 0.35
+  freeze_layers: 10
+
+train:
+  learning_rate: 5.0e-5
+  head_learning_rate: 5.0e-4
+  batch_size: 8
+  eval_batch_size: 16
+  epochs: 1
+  max_train_notes: 80
+  warmup_ratio: 0.1
+  weight_decay: 0.01
+  loss: weighted_ce
+  class_weight_scheme: balanced
+  metric_for_best: auprc
+  patience: 1
+  log_every: 5
+  max_train_steps: 10
+  amp: false
+
+baselines: {kinds: [logreg], tune: false, calibrate: false, max_features: 5000}
+
+explain:
+  methods: [attention_rollout, occlusion]
+  default_method: attention_rollout
+  shap_max_evals: 64
+  ig_steps: 4
+  occlusion_max_words: 40
+  word_reduction: sum
+
+evaluation:
+  n_bootstrap: 50
+  significance_metric: auprc
+  faithfulness_n_notes: 3
+  faithfulness_k_fractions: [0.05, 0.2]
+  faithfulness_removal: mask
+  stability_n_notes: 3
+  plausibility_n_notes: 3
+  human_review_n_notes: 2
+
+serve:
+  default_model: clinicalbert
+  checkpoint_root: results/smoke/checkpoints
+  cache_size: 8
+  max_note_chars: 40000

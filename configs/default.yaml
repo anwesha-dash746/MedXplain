@@ -1,0 +1,111 @@
+# MedXplain - default experiment configuration.
+#
+# This file is the single source of truth for a run. Every script reads it, and
+# a copy is written into results/ alongside the metrics so any number in the
+# paper can be traced back to the exact configuration that produced it.
+#
+# Profiles:
+#   default.yaml     - the reduced-scale pilot that runs on CPU (this file)
+#   mimic_full.yaml  - full-scale protocol for MIMIC-III on a GPU
+#   smoke.yaml       - tiny config used by the test suite and CI
+
+experiment:
+  name: pilot_synthetic
+  primary_outcome: mortality        # mortality | readmission_30d
+  secondary_outcome: readmission_30d
+  seeds: [13, 42]                   # multi-seed: results reported as mean +/- std
+  results_dir: results
+  device: auto                      # auto | cpu | cuda
+
+data:
+  source: synthetic                 # synthetic | mimic
+  n_notes: 3000
+  target_positive_rate: 0.16
+  target_readmission_rate: 0.20
+  label_noise: 0.05
+  processed_path: data/processed/corpus.parquet
+  splits_path: data/processed/splits.json
+  # MIMIC-III settings, used when source == mimic
+  mimic_root: null
+  mimic_mask_leakage: true
+  mimic_limit: null
+
+split:
+  test_size: 0.15
+  val_size: 0.15
+  seed: 42
+  group_col: subject_id             # patient-disjoint splitting where available
+
+preprocess:
+  replace_deid: true
+  collapse_whitespace: true
+  strip_rule_lines: true
+  lowercase: false
+  expand_abbreviations: false       # reported as an ablation, not a default
+  max_chars: null
+
+model:
+  # Backbones compared. bert is the no-domain-adaptation control that isolates
+  # the benefit of clinical/biomedical pretraining.
+  backbones: [clinicalbert, biobert, pubmedbert, bert]
+  max_length: 128
+  pooling: cls
+  dropout: 0.1
+  truncation_strategy: head_tail    # keeps presenting history AND discharge disposition
+  head_fraction: 0.35
+  # Compute-constrained protocol: the bottom two thirds of the encoder stays
+  # frozen. Set to 0 for full fine-tuning on a GPU (see mimic_full.yaml).
+  freeze_layers: 8
+
+train:
+  learning_rate: 3.0e-5
+  head_learning_rate: 3.0e-4
+  weight_decay: 0.01
+  batch_size: 16
+  eval_batch_size: 32
+  epochs: 2
+  # Cap on TRAINING notes, applied identically to the baselines and every
+  # transformer so the comparison stays apples-to-apples. Validation and test are
+  # never subsampled. Set to null for the full training split (see mimic_full.yaml).
+  max_train_notes: 1000
+  warmup_ratio: 0.1
+  max_grad_norm: 1.0
+  loss: weighted_ce                 # ce | weighted_ce | focal
+  class_weight_scheme: balanced
+  focal_gamma: 2.0
+  metric_for_best: auprc            # rare-event setting: AUPRC, not accuracy/loss
+  patience: 1
+  log_every: 20
+  amp: false
+
+baselines:
+  kinds: [logreg, random_forest, xgboost]
+  tune: true
+  calibrate: true
+  max_features: 60000
+
+explain:
+  methods: [attention_rollout, attention_raw, shap, integrated_gradients, occlusion]
+  default_method: attention_rollout
+  shap_max_evals: 150
+  ig_steps: 16
+  occlusion_max_words: 120
+  word_reduction: sum
+
+evaluation:
+  n_bootstrap: 1000
+  significance_metric: auprc
+  # explanation evaluation is expensive; run it on a random subsample of the test set
+  faithfulness_n_notes: 25
+  faithfulness_k_fractions: [0.01, 0.05, 0.10, 0.20, 0.50]
+  faithfulness_removal: mask
+  stability_n_notes: 15
+  plausibility_n_notes: 25
+  human_review_n_notes: 12
+
+serve:
+  # checkpoint the API loads; filled in by scripts/02_train_transformers.py
+  default_model: clinicalbert
+  checkpoint_root: results/checkpoints
+  cache_size: 128
+  max_note_chars: 40000

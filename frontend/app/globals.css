@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-slate-50 text-slate-800;
+  }
+  ::selection {
+    @apply bg-clinical-200 text-clinical-900;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-slate-200 bg-white shadow-sm;
+  }
+  .card-header {
+    @apply flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-3;
+  }
+  .card-title {
+    @apply text-sm font-semibold uppercase tracking-wide text-slate-500;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium
+           transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply btn bg-clinical-600 text-white hover:bg-clinical-700;
+  }
+  .btn-secondary {
+    @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+  }
+  .btn-ghost {
+    @apply btn text-slate-600 hover:bg-slate-100;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+  .field-label {
+    @apply mb-1 block text-xs font-medium uppercase tracking-wide text-slate-500;
+  }
+  .select {
+    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm
+           focus:border-clinical-500 focus:outline-none focus:ring-1 focus:ring-clinical-500;
+  }
+}
+
+/*
+ * The highlighted-note view renders the whole note as inline spans. Word breaking
+ * and whitespace preservation have to be explicit or a monospaced clinical note
+ * loses its line structure, which is how a clinician navigates it.
+ */
+.note-surface {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.85;
+}
+
+.note-token {
+  border-radius: 3px;
+  padding: 1px 0;
+  transition: background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.note-token[data-interactive="true"]:hover {
+  box-shadow: 0 0 0 2px rgba(37, 95, 140, 0.45);
+  cursor: help;
+}
+
+.skeleton {
+  @apply animate-shimmer rounded bg-slate-200;
+  background-image: linear-gradient(90deg, #e2e8f0 0px, #f1f5f9 40px, #e2e8f0 80px);
+  background-size: 1000px 100%;
+}

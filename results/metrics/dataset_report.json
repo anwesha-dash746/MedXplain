@@ -1,0 +1,81 @@
+{
+  "source": "synthetic",
+  "n_notes": 3000,
+  "primary_outcome": "mortality",
+  "splits": {
+    "test": {
+      "n": 429,
+      "chars_mean": 1303.086247086247,
+      "mortality_positive": 71,
+      "mortality_rate": 0.1655011655011655,
+      "readmission_30d_positive": 73,
+      "readmission_30d_rate": 0.17016317016317017
+    },
+    "train": {
+      "n": 2142,
+      "chars_mean": 1279.24883286648,
+      "mortality_positive": 355,
+      "mortality_rate": 0.1657329598506069,
+      "readmission_30d_positive": 420,
+      "readmission_30d_rate": 0.19607843137254902
+    },
+    "val": {
+      "n": 429,
+      "chars_mean": 1285.6689976689977,
+      "mortality_positive": 71,
+      "mortality_rate": 0.1655011655011655,
+      "readmission_30d_positive": 95,
+      "readmission_30d_rate": 0.22144522144522144
+    }
+  },
+  "leakage_check": {
+    "duplicate_text_across_splits": 0,
+    "shared_groups": 0,
+    "ok": true
+  },
+  "preprocess": {
+    "replace_deid": true,
+    "collapse_whitespace": true,
+    "strip_rule_lines": true,
+    "strip_header": true,
+    "lowercase": false,
+    "expand_abbreviations": false,
+    "max_chars": null
+  },
+  "environment": {
+    "python": "3.11.9",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 154 Stepping 4, GenuineIntel",
+    "numpy": "2.2.1",
+    "pandas": "2.3.2",
+    "sklearn": "1.8.0",
+    "torch": "2.8.0+cpu",
+    "transformers": "4.56.2",
+    "shap": "0.51.0",
+    "xgboost": "3.2.0",
+    "scipy": "1.14.1",
+    "cuda_available": false,
+    "device_name": "cpu"
+  },
+  "char_length": {
+    "mean": 1283.5756666666666,
+    "median": 1189.0,
+    "max": 2859
+  },
+  "gold_rationales": {
+    "mean_spans_per_note": 4.519666666666667,
+    "notes_with_spans": 3000
+  },
+  "token_length": {
+    "n_sampled": 500,
+    "mean": 341.374,
+    "std": 61.84543737415073,
+    "median": 326.5,
+    "p90": 440.0,
+    "p95": 458.0,
+    "max": 531,
+    "frac_over_512": 0.006,
+    "frac_over_256": 0.958,
+    "tokenizer": "emilyalsentzer/Bio_ClinicalBERT"
+  }
+}

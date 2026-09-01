@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Data: MIMIC-III may not be redistributed, and the synthetic corpus is
+# regenerable from a seed, so neither belongs in version control.
+data/raw/
+data/processed/*.parquet
+data/processed/examples.json
+
+# Model checkpoints are hundreds of MB each; regenerate with scripts/02.
+results/checkpoints/
+results/predictions/
+results/_calib/
+
+# Results that ARE tracked: metrics, figures and tables are the paper's evidence.
+!results/metrics/
+!results/figures/
+!results/tables/
+
+# Node
+node_modules/
+.next/
+out/
+
+# Local
+.cache/
+.env
+.env*.local
+*.log
+.DS_Store

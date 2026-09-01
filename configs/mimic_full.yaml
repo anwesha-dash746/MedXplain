@@ -1,0 +1,106 @@
+# MedXplain - full-scale protocol for MIMIC-III on a GPU.
+#
+# This is the configuration a paper should report. It differs from the CPU pilot
+# in the ways that matter for headline numbers: real data, the full 512-token
+# context, full fine-tuning (nothing frozen), five seeds, and enough epochs for
+# early stopping to actually trigger rather than the epoch budget running out.
+#
+#   python scripts/00_build_dataset.py --config configs/mimic_full.yaml \
+#          --set data.mimic_root=/path/to/mimic-iii-clinical-database-1.4
+#   python scripts/01_train_baselines.py   --config configs/mimic_full.yaml
+#   python scripts/02_train_transformers.py --config configs/mimic_full.yaml --resume
+#   ... 03..07 likewise
+#
+# Rough cost on a single A100: ~35 min per (backbone, seed) run at 512 tokens on
+# a ~50k-admission cohort, so ~12 h for 4 backbones x 5 seeds, plus ~2 h for the
+# explanation evaluation.
+
+experiment:
+  name: mimic3_mortality_full
+  primary_outcome: mortality
+  secondary_outcome: readmission_30d
+  seeds: [13, 42, 2024, 7, 101]     # 5 seeds: reviewers ask for >= 3
+  results_dir: results_mimic
+  device: auto
+
+data:
+  source: mimic
+  processed_path: data/processed/mimic_corpus.parquet
+  splits_path: data/processed/mimic_splits.json
+  # Point this at the directory holding ADMISSIONS.csv / PATIENTS.csv / NOTEEVENTS.csv
+  mimic_root: null
+  # Discharge summaries state the mortality outcome outright ("patient expired").
+  # Leaving this on is the honest default; turn it off only to report the ablation.
+  mimic_mask_leakage: true
+  mimic_limit: null
+
+split:
+  test_size: 0.15
+  val_size: 0.15
+  seed: 42
+  group_col: subject_id             # patient-disjoint: MIMIC has repeat admissions
+
+preprocess:
+  replace_deid: true
+  collapse_whitespace: true
+  strip_rule_lines: true
+  lowercase: false
+  expand_abbreviations: false
+  max_chars: null
+
+model:
+  backbones: [clinicalbert, biobert, pubmedbert, bert]
+  max_length: 512                   # real discharge summaries are long
+  pooling: cls
+  dropout: 0.1
+  truncation_strategy: head_tail
+  head_fraction: 0.35
+  freeze_layers: 0                  # full fine-tuning
+
+train:
+  learning_rate: 2.0e-5
+  head_learning_rate: 2.0e-4
+  weight_decay: 0.01
+  batch_size: 16
+  eval_batch_size: 64
+  epochs: 6
+  max_train_notes: null             # use the whole training split
+  warmup_ratio: 0.1
+  max_grad_norm: 1.0
+  loss: weighted_ce
+  class_weight_scheme: balanced
+  focal_gamma: 2.0
+  metric_for_best: auprc
+  patience: 2
+  log_every: 100
+  amp: true                         # mixed precision: roughly 2x faster on modern GPUs
+
+baselines:
+  kinds: [logreg, random_forest, xgboost]
+  tune: true
+  calibrate: true
+  max_features: 200000              # a real cohort supports a much larger vocabulary
+
+explain:
+  methods: [attention_rollout, attention_raw, attention_grad, shap, integrated_gradients, occlusion]
+  default_method: attention_rollout
+  shap_max_evals: 500
+  ig_steps: 64
+  occlusion_max_words: 400
+  word_reduction: sum
+
+evaluation:
+  n_bootstrap: 2000
+  significance_metric: auprc
+  faithfulness_n_notes: 200
+  faithfulness_k_fractions: [0.01, 0.05, 0.10, 0.20, 0.50]
+  faithfulness_removal: mask
+  stability_n_notes: 150
+  plausibility_n_notes: 0           # no gold rationales exist for real notes
+  human_review_n_notes: 40          # blinded clinician review instead
+
+serve:
+  default_model: clinicalbert
+  checkpoint_root: results_mimic/checkpoints
+  cache_size: 256
+  max_note_chars: 60000

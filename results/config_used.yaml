@@ -1,0 +1,100 @@
+experiment:
+  name: pilot_synthetic
+  primary_outcome: mortality
+  secondary_outcome: readmission_30d
+  seeds:
+  - 13
+  - 42
+  - 2024
+  results_dir: results
+  device: auto
+data:
+  source: synthetic
+  n_notes: 3000
+  target_positive_rate: 0.16
+  target_readmission_rate: 0.2
+  label_noise: 0.05
+  processed_path: data/processed/corpus.parquet
+  splits_path: data/processed/splits.json
+  mimic_root: null
+  mimic_mask_leakage: true
+  mimic_limit: null
+split:
+  test_size: 0.15
+  val_size: 0.15
+  seed: 42
+  group_col: subject_id
+preprocess:
+  replace_deid: true
+  collapse_whitespace: true
+  strip_rule_lines: true
+  lowercase: false
+  expand_abbreviations: false
+  max_chars: null
+model:
+  backbones:
+  - clinicalbert
+  - biobert
+  - pubmedbert
+  - bert
+  max_length: 128
+  pooling: cls
+  dropout: 0.1
+  truncation_strategy: head_tail
+  head_fraction: 0.35
+  freeze_layers: 6
+train:
+  learning_rate: 3.0e-05
+  head_learning_rate: 0.0003
+  weight_decay: 0.01
+  batch_size: 16
+  eval_batch_size: 32
+  epochs: 2
+  warmup_ratio: 0.1
+  max_grad_norm: 1.0
+  loss: weighted_ce
+  class_weight_scheme: balanced
+  focal_gamma: 2.0
+  metric_for_best: auprc
+  patience: 1
+  log_every: 20
+  amp: false
+baselines:
+  kinds:
+  - logreg
+  - random_forest
+  - xgboost
+  tune: true
+  calibrate: true
+  max_features: 60000
+explain:
+  methods:
+  - attention_rollout
+  - attention_raw
+  - shap
+  - integrated_gradients
+  - occlusion
+  default_method: attention_rollout
+  shap_max_evals: 200
+  ig_steps: 16
+  occlusion_max_words: 200
+  word_reduction: sum
+evaluation:
+  n_bootstrap: 1000
+  significance_metric: auprc
+  faithfulness_n_notes: 40
+  faithfulness_k_fractions:
+  - 0.01
+  - 0.05
+  - 0.1
+  - 0.2
+  - 0.5
+  faithfulness_removal: mask
+  stability_n_notes: 30
+  plausibility_n_notes: 40
+  human_review_n_notes: 20
+serve:
+  default_model: clinicalbert
+  checkpoint_root: results/checkpoints
+  cache_size: 128
+  max_note_chars: 40000

@@ -1,0 +1,596 @@
+% =====================================================================
+% MedXplain - IEEE conference paper, FIRST DRAFT
+%
+% Compile:
+%   pdflatex medxplain_ieee.tex   (run twice for references)
+%
+% Needs IEEEtran.cls - ships with TeX Live/MiKTeX, or download from
+% https://www.ieee.org/conferences/publishing/templates.html
+%
+% DRAFT STATUS: every number that has not been measured yet renders in red
+% via \TBD or \ph{}. Set \draftnumsfalse below to turn the colouring off once
+% the real results are in. Do not remove the macros - they are the only thing
+% stopping a placeholder from being mistaken for a result.
+% =====================================================================
+
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{url}
+
+\usepackage[hidelinks]{hyperref}
+
+% --- draft placeholder machinery -------------------------------------
+\newif\ifdraftnums\draftnumstrue   % <-- \draftnumsfalse when results are final
+\newcommand{\TBD}{\ifdraftnums\textcolor{red}{\textbf{[TBD]}}\else--\fi}
+\newcommand{\ph}[1]{\ifdraftnums\textcolor{red}{#1}\else#1\fi}
+\newcommand{\note}[1]{\ifdraftnums\textcolor{blue}{\small[#1]}\fi}
+% ---------------------------------------------------------------------
+
+\begin{document}
+
+\title{Faithful, Stable, or Plausible? A Three-Axis Evaluation of\\
+Explanation Methods for Transformer-Based Clinical Risk Prediction}
+
+\author{\IEEEauthorblockN{Anwesha Dash}
+\IEEEauthorblockA{\textit{\ph{Department}} \\
+\textit{\ph{Institution}}\\
+\ph{City, Country} \\
+anwesha.dash3010@gmail.com}
+\and
+\IEEEauthorblockN{\ph{Co-author / Supervisor}}
+\IEEEauthorblockA{\textit{\ph{Department}} \\
+\textit{\ph{Institution}}\\
+\ph{City, Country} \\
+\ph{email}}
+}
+
+\maketitle
+
+\begin{abstract}
+Transformer language models pretrained on clinical text predict patient outcomes
+from unstructured notes with high accuracy, but clinicians will not act on an
+unexplained risk score. Token-level attribution methods are routinely added to
+close this gap, and are almost always validated by visual inspection of a single
+method. We argue that clinical deployment requires three distinct properties of
+an explanation --- \emph{faithfulness} to the model's actual decision process,
+\emph{stability} under the paraphrase and abbreviation variance endemic to
+clinical documentation, and \emph{plausibility} to a clinician, including the
+direction of each contribution --- and that the field has no evidence these
+properties are satisfied together. We evaluate six explanation methods spanning
+attention-based, perturbation-based and gradient-based families on a single
+fine-tuned clinical transformer over MIMIC-III discharge summaries, measuring all
+three axes plus computational cost on the same model and the same notes. We find
+that \TBD. We additionally propose a rank-ensemble explainer that recovers \TBD\
+of SHAP's faithfulness at \TBD\ of its computational cost. Our results indicate
+that the choice of explanation method is a documented trade-off with clinical
+consequences rather than an implementation detail. Code and the full evaluation
+harness are released.
+\end{abstract}
+
+\begin{IEEEkeywords}
+clinical natural language processing, explainable AI, interpretability,
+faithfulness, transformers, risk prediction, MIMIC-III
+\end{IEEEkeywords}
+
+% =====================================================================
+\section{Introduction}
+% =====================================================================
+
+Clinical notes contain the richest information in the medical record. Severity,
+trajectory, response to treatment and goals of care are documented in narrative
+prose and are largely absent from the structured fields --- laboratory values,
+vital signs, billing codes --- on which conventional risk models are built.
+Transformer language models pretrained on clinical or biomedical corpora, such as
+ClinicalBERT~\cite{alsentzer2019}, BioBERT~\cite{lee2020} and
+PubMedBERT~\cite{gu2021}, extract this signal effectively, and clinical outcome
+prediction from free text is by now a well-established
+task~\cite{huang2019,vanaken2021}.
+
+These models nevertheless output a bare probability. A clinician presented with
+``\,0.71 risk of in-hospital mortality\,'' and no justification has no basis on
+which to accept, override, or learn from the prediction, and a growing body of
+regulatory and professional guidance treats explainability as a precondition for
+clinical decision support rather than a desirable extra.
+
+The standard response is to attach a token-level attribution method --- most
+often attention weights, sometimes SHAP~\cite{lundberg2017} --- and to render the
+note with the highest-scoring words highlighted. The resulting figure is then
+validated by inspection: the highlighted phrases look clinically sensible, and
+the system is declared interpretable. This is a weak standard, for a reason that
+is well understood in the broader NLP literature: an explanation can be entirely
+plausible to a human while being a poor description of what the model actually
+did~\cite{jain2019,wiegreffe2019}. The ERASER benchmark~\cite{deyoung2020}
+introduced quantitative \emph{faithfulness} metrics precisely to address this,
+but they have seen limited uptake in clinical NLP.
+
+We argue the problem is not only that faithfulness goes unmeasured, but that
+clinical deployment imposes \emph{three} distinct requirements that the
+literature evaluates separately, if at all:
+
+\begin{enumerate}
+\item \textbf{Faithfulness.} Do the highlighted tokens actually drive the
+      prediction, or merely co-occur with it?
+\item \textbf{Stability.} Clinical documentation is highly variable: the same
+      finding appears as \texttt{SOB} or \texttt{shortness of breath},
+      \texttt{CMO} or \texttt{comfort measures only}, depending on author,
+      service and institution. An explanation whose highlights change with
+      surface form is unusable at the bedside.
+\item \textbf{Plausibility, including direction.} A clinician needs to know not
+      only that a phrase mattered but \emph{which way} it pushed. Attention-based
+      methods are unsigned by construction and cannot express that a finding such
+      as ``ambulating independently, discharged home'' is protective.
+\end{enumerate}
+
+To our knowledge no prior work measures all three on the same model and the same
+clinical corpus, which means the field tacitly assumes they co-occur. They may
+not, and if they do not, the choice of explanation method carries clinical
+consequences that are currently invisible.
+
+\medskip\noindent\textbf{Contributions.}
+\begin{itemize}
+\item A three-axis evaluation framework --- faithfulness, stability,
+      plausibility --- applied to six explanation methods on one fine-tuned
+      clinical transformer over MIMIC-III, with computational cost as a fourth,
+      deployment-oriented axis (Section~\ref{sec:framework}).
+\item A random-explanation control on every faithfulness measurement, isolating
+      the contribution of the explanation from the confound that masking any
+      text degrades a prediction (Section~\ref{sec:faithfulness}).
+\item A stability protocol using meaning-preserving clinical paraphrase,
+      near-duplicate perturbation, and distractor insertion, quantifying
+      robustness to documentation variance (Section~\ref{sec:stability}).
+\item A \emph{sign agreement} metric that quantifies what is lost by using an
+      unsigned attribution method, turning a qualitative critique of attention
+      into a measurable quantity (Section~\ref{sec:plausibility}).
+\item A rank-ensemble explainer that attains \TBD\ of SHAP's faithfulness at
+      \TBD\ of its cost (Section~\ref{sec:ensemble}).
+\item A released, dataset-agnostic implementation, including a synthetic clinical
+      corpus with gold rationale spans used to validate the plausibility metric
+      itself (Section~\ref{sec:synthetic}).
+\end{itemize}
+
+% =====================================================================
+\section{Related Work}
+% =====================================================================
+
+\subsection{Clinical outcome prediction from notes}
+Domain-adapted encoders substantially outperform general-domain BERT on clinical
+tasks~\cite{alsentzer2019,lee2020,gu2021}. ClinicalBERT was applied to 30-day
+readmission from discharge summaries~\cite{huang2019}, and subsequent work
+established a broader benchmark of admission-note outcome prediction
+tasks~\cite{vanaken2021}. Our prediction model follows this line and is not
+itself a contribution; it exists to provide a realistic, well-trained subject for
+the explanation evaluation.
+
+\subsection{Attention as explanation}
+Whether attention weights constitute explanation has been contested since
+\cite{jain2019} showed attention distributions can be substantially altered
+without changing predictions, and \cite{serrano2019} reached similar conclusions
+via intermediate-representation erasure. \cite{wiegreffe2019} argued the critique
+depends on what one asks of an explanation. Attention
+rollout~\cite{abnar2020} addresses a narrower technical objection, propagating
+attention across layers while accounting for residual connections, and
+\cite{chefer2021} makes the resulting map class-specific by gradient weighting.
+We include raw attention, rollout and gradient-weighted rollout as three distinct
+conditions rather than treating ``attention'' as one method.
+
+\subsection{Faithfulness evaluation}
+ERASER~\cite{deyoung2020} introduced \emph{comprehensiveness} and
+\emph{sufficiency} as quantitative faithfulness measures over human-annotated
+rationales. Deletion and insertion curves serve a similar role in vision.
+Integrated gradients~\cite{sundararajan2017} and SHAP~\cite{lundberg2017} carry
+axiomatic guarantees --- completeness and additivity respectively --- that
+attention-based methods lack. These metrics are, however, applied predominantly
+to general-domain benchmarks; their behaviour on clinical risk prediction, where
+notes are long, class imbalance is severe and the deployment stakes differ, is
+largely uncharacterised.
+
+\subsection{Stability of explanations}
+\cite{ghorbani2019} demonstrated that neural network interpretations are fragile
+under imperceptible input perturbation. In clinical text the relevant
+perturbation is not adversarial but naturally occurring: the same clinical fact
+written by a different author. We are not aware of prior work measuring
+explanation invariance to clinical abbreviation and synonym variation, which we
+argue is the operationally relevant robustness question in this domain.
+
+\note{TODO before submission: run a targeted search for recent work on joint
+faithfulness/stability evaluation in clinical NLP, and on synthetic gold-rationale
+benchmarks, to confirm the gap claim in Sec.~I is still accurate.}
+
+% =====================================================================
+\section{Data}\label{sec:data}
+% =====================================================================
+
+\subsection{MIMIC-III cohort}
+We use discharge summaries from MIMIC-III~\cite{johnson2016}. The unit of
+analysis is the hospital admission (\texttt{HADM\_ID}). Notes are
+\texttt{NOTEEVENTS} rows with \texttt{CATEGORY = `Discharge summary'}; where an
+admission has addenda, report and addenda are concatenated in \texttt{CHARTDATE}
+order, and rows flagged \texttt{ISERROR} are dropped. The primary outcome is
+in-hospital mortality (\texttt{HOSPITAL\_EXPIRE\_FLAG}); 30-day readmission is
+reported as a secondary outcome, defined as a non-elective admission for the same
+\texttt{SUBJECT\_ID} beginning within 30 days of discharge, with index admissions
+ending in death excluded. We exclude patients under 18 at admission, admissions
+without a discharge summary, and organ-donor accounts. The resulting cohort
+contains \TBD\ admissions with a mortality rate of \TBD.
+
+\subsection{Leakage control}
+Two forms of leakage would inflate results and are controlled explicitly.
+
+\textbf{Outcome leakage.} A discharge summary for a patient who died frequently
+states the outcome directly (``patient expired'', ``time of death'',
+``\texttt{Discharge Disposition: EXPIRED}''). Training on such text is not
+prediction. We redact twelve such patterns and report the ablation with and
+without redaction (Table~\ref{tab:main}, \note{add ablation row}).
+
+\textbf{Identity leakage.} MIMIC-III patients have repeat admissions. We split on
+\texttt{SUBJECT\_ID} with stratification on the outcome, so that no patient
+appears in more than one split, and assert both patient disjointness and the
+absence of duplicate note text across splits.
+
+\subsection{Preprocessing}
+De-identification placeholders are replaced with typed tokens
+(\texttt{<DATE>}, \texttt{<PLACE>}, \texttt{<NAME>}) rather than deleted, so that
+character offsets used by the explanation payload remain valid. Administrative
+header lines are removed; in our corpus this reduced mean note length from
+\ph{459} to \ph{341} wordpieces, materially changing what survives truncation.
+Abbreviation expansion alters token boundaries and therefore explanations, so it
+is disabled by default and reported only as an ablation.
+
+Median note length is \TBD\ wordpieces, with \TBD\% exceeding the 512-token
+encoder limit. We use head--tail truncation, retaining the first 35\% and last
+65\% of the budget: plain right-truncation discards the discharge disposition,
+where goals-of-care language --- among the strongest mortality signals in
+narrative notes --- is located.
+
+\subsection{Synthetic corpus for metric validation}\label{sec:synthetic}
+Plausibility on real notes requires clinician annotation, which is expensive and
+available only at small scale. To validate that our automatic plausibility metric
+measures what we claim, we additionally construct a synthetic corpus of
+\ph{3{,}000} notes imitating the surface structure of MIMIC-III discharge
+summaries, generated from a known process
+\begin{equation}
+\mathrm{logit} = \beta_0 + \beta_{\text{age}} + \sum_{f \in F} w_f,
+\qquad y \sim \mathrm{Bernoulli}(\sigma(\mathrm{logit}))
+\end{equation}
+over \ph{24} clinical risk factors $F$ with known log-odds weights $w_f$. Because
+$y$ is sampled rather than thresholded, Bayes-optimal AUROC is strictly below
+1.0. Each injected risk-factor sentence is recorded with its character span,
+providing \emph{gold rationales} without annotation. Outcome-neutral distractor
+sentences are injected in every section, penalising explainers that attach to
+clinical boilerplate. We stress that this corpus validates the metric; all
+reported clinical results are on MIMIC-III.
+
+% =====================================================================
+\section{Model}\label{sec:model}
+% =====================================================================
+
+We fine-tune four encoders for binary classification: Bio\_ClinicalBERT,
+BioBERT, PubMedBERT, and BERT-base as a control isolating the benefit of domain
+adaptation. Each uses a \texttt{[CLS]} pooled representation followed by dropout
+and a linear head.
+
+Class imbalance (\TBD\% positive) is handled with inverse-frequency weighted
+cross-entropy; unweighted cross-entropy and focal loss~\cite{lin2017} are
+reported as ablations. Model selection uses \textbf{validation AUPRC} rather than
+loss or accuracy: at this prevalence, validation loss is dominated by the
+majority class and routinely selects a checkpoint that ranks the minority class
+worse. The classification head uses a learning rate $10\times$ that of the
+encoder. Each configuration is trained across \ph{five} random seeds and reported
+as mean $\pm$ standard deviation.
+
+The best model is selected on \emph{validation} AUPRC and evaluated once on the
+held-out test set; all explanation experiments use that single checkpoint.
+
+% =====================================================================
+\section{Explanation Methods}\label{sec:methods}
+% =====================================================================
+
+We compare six methods spanning three families. All return an identical payload
+--- per-token scores with character offsets into the source note, aggregated to
+whitespace words --- so that the same metrics and the same interface consume all
+six without modification.
+
+\subsection{Attention-based}
+\textbf{Raw attention} takes the mean over heads of the final layer's
+\texttt{[CLS]} attention row. \textbf{Attention rollout}~\cite{abnar2020}
+propagates attention across all layers,
+\begin{equation}
+\hat{A}_l = \mathrm{norm}\!\left(\tfrac{1}{2}\,\overline{A_l} + \tfrac{1}{2}I\right),
+\qquad
+R = \hat{A}_L \hat{A}_{L-1} \cdots \hat{A}_1,
+\end{equation}
+where $\overline{A_l}$ is the head-averaged attention at layer $l$ and the
+identity term models the residual stream; importance is the \texttt{[CLS]} row of
+$R$. Both are unsigned and, in the case of rollout, class-agnostic: the same map
+is produced regardless of which class is predicted.
+\textbf{Gradient-weighted rollout}~\cite{chefer2021} weights heads by the
+gradient of the target logit before fusion, yielding a signed, class-specific map.
+
+\subsection{Perturbation-based}
+\textbf{Occlusion} masks each word in turn and records the change in
+positive-class log-odds, requiring one forward pass per word.
+\textbf{SHAP}~\cite{lundberg2017} is computed with a partition explainer over the
+note, exploiting hierarchical text structure for $O(n \log n)$ rather than $2^n$
+model evaluations. We compute SHAP values in \emph{log-odds} space: Shapley
+additivity holds on a scale where the model is locally linear, and on the
+probability scale values cease to sum to the prediction once the sigmoid
+saturates --- precisely the high-risk regime of interest.
+
+\subsection{Gradient-based}
+\textbf{Integrated gradients}~\cite{sundararajan2017} integrates the gradient
+along a path from a baseline $x'$ to the input,
+\begin{equation}
+\mathrm{IG}_i = (x_i - x'_i)\int_0^1
+\frac{\partial F\!\left(x' + \alpha (x - x')\right)}{\partial x_i}\, d\alpha ,
+\end{equation}
+approximated by Riemann midpoint sum. We use an all-\texttt{[MASK]} baseline with
+special tokens preserved rather than the zero embedding, which is not a point in
+the model's input distribution for text. Completeness --- attributions summing to
+$F(x) - F(x')$ --- provides a built-in correctness check, reported as
+convergence error.
+
+% =====================================================================
+\section{Evaluation Framework}\label{sec:framework}
+% =====================================================================
+
+\subsection{Faithfulness}\label{sec:faithfulness}
+Following ERASER~\cite{deyoung2020}, for a prediction $\hat{y}$ with the top-$k$
+scoring tokens $r_k$:
+\begin{align}
+\mathrm{comp} &= p(\hat{y}\mid x) - p(\hat{y}\mid x \setminus r_k), \\
+\mathrm{suff} &= p(\hat{y}\mid x) - p(\hat{y}\mid r_k).
+\end{align}
+Both are averaged over $k \in \{1,5,10,20,50\}\%$ of tokens. Three
+implementation choices are load-bearing:
+
+\emph{Removal means masking, not deletion.} Deleting tokens shortens the sequence
+and shifts all positions, so part of the measured drop would be a length artefact
+rather than evidence removal.
+
+\emph{Every measurement carries a random-explanation control.} Masking any 20\%
+of a note degrades confidence to some degree. The quantity that separates methods
+is how much \emph{more} the explanation's tokens hurt than a random selection of
+the same size, which we report as $\mathrm{comp}_{\Delta\text{rand}}$. Omitting
+this control conflates explanation quality with the generic effect of perturbing
+text.
+
+\emph{Tokens are ranked by signed score toward the predicted class}, not by
+absolute value, which would mix in the strongest evidence \emph{against} the
+prediction and understate comprehensiveness.
+
+We additionally report deletion and insertion curves and their areas.
+
+\subsection{Stability}\label{sec:stability}
+Each note is re-explained under three meaning-preserving perturbations of
+increasing severity: \textbf{near-duplicate} (whitespace and casing only),
+\textbf{paraphrase} (clinical abbreviation and synonym substitution), and
+\textbf{distractor} (an outcome-irrelevant sentence appended). Agreement is
+measured by Spearman correlation over shared vocabulary, top-$k$ Jaccard overlap,
+and, for the distractor condition, \emph{distractor mass}: the fraction of total
+absolute importance landing on the inserted sentence. We also report the shift in
+predicted probability, since a genuine change in the model's output would make a
+change in explanation legitimate.
+
+\subsection{Plausibility}\label{sec:plausibility}
+On MIMIC-III we conduct a blinded review. For each of \ph{40} test notes, the
+top-8 highlighted phrases from each method are presented under neutral labels
+that are reshuffled per note, so a rater cannot learn a method's identity.
+\ph{Three} clinically-informed raters score clinical sensibility and completeness
+on a 1--5 Likert rubric. We report per-method means and Krippendorff's $\alpha$
+for ordinal data, chosen over Fleiss' $\kappa$ because it accommodates missing
+ratings and respects the ordering of the scale.
+
+On the synthetic corpus, where gold rationales are known, we additionally report
+token-level F1 and rationale AUPRC against the gold spans, Spearman correlation
+between attribution magnitude and true log-odds weight, and \textbf{sign
+agreement}: the fraction of gold rationale tokens whose attributed sign matches
+the sign of the true weight. Sign agreement is undefined for unsigned methods,
+which is itself the finding --- it quantifies the clinical information those
+methods structurally cannot convey.
+
+\subsection{Cost}
+We report mean wall-clock seconds and mean model evaluations per note, and plot
+faithfulness against cost. For bedside deployment this trade-off, not
+faithfulness alone, determines what is usable.
+
+\subsection{Statistical procedure}
+Comparisons between models use paired tests, since all models are evaluated on
+identical patients: DeLong~\cite{delong1988} for correlated AUROCs and a paired
+stratified bootstrap for AUPRC, which has no closed-form variance. Multiple
+comparisons against baselines are Holm-corrected. Bootstrap resampling is
+stratified by class, as an unstratified bootstrap on a rare outcome produces
+folds in which AUROC is undefined.
+
+% =====================================================================
+\section{Experimental Setup}
+% =====================================================================
+
+Models are fine-tuned for up to \ph{6} epochs with early stopping on validation
+AUPRC (patience \ph{2}), batch size \ph{16}, encoder learning rate
+\ph{$2\times10^{-5}$}, maximum sequence length \ph{512}, on \ph{a single NVIDIA
+A100}. SHAP uses \ph{500} evaluations per note; integrated gradients uses
+\ph{64} steps. Faithfulness is computed on \ph{200} test notes and stability on
+\ph{150}. Full configuration files, seeds and package versions are released with
+the code.
+
+% =====================================================================
+\section{Results}
+% =====================================================================
+
+\subsection{Predictive performance}
+Table~\ref{tab:main} reports held-out test performance. \TBD
+
+\begin{table}[t]
+\caption{Held-out test performance on in-hospital mortality, MIMIC-III.
+Mean $\pm$ SD over \ph{5} seeds. $p$-values are paired bootstrap against the best
+model, Holm-adjusted.}
+\label{tab:main}
+\centering
+\begin{tabular}{lcccc}
+\toprule
+Model & AUROC & AUPRC & F1 & $p$ \\
+\midrule
+TF-IDF + LR        & \TBD & \TBD & \TBD & \TBD \\
+TF-IDF + XGBoost   & \TBD & \TBD & \TBD & \TBD \\
+BERT-base          & \TBD & \TBD & \TBD & \TBD \\
+BioBERT            & \TBD & \TBD & \TBD & \TBD \\
+PubMedBERT         & \TBD & \TBD & \TBD & \TBD \\
+Bio\_ClinicalBERT  & \TBD & \TBD & \TBD & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Faithfulness}
+Table~\ref{tab:faith} reports comprehensiveness and sufficiency with the random
+control. \TBD
+
+\begin{table}[t]
+\caption{Explanation faithfulness on \ph{200} test notes.
+$\uparrow$/$\downarrow$ indicate preferred direction.}
+\label{tab:faith}
+\centering
+\begin{tabular}{lcccc}
+\toprule
+Method & Comp.\,$\uparrow$ & Suff.\,$\downarrow$ & vs.\ rand.\,$\uparrow$ & s/note \\
+\midrule
+Raw attention       & \TBD & \TBD & \TBD & \TBD \\
+Attention rollout   & \TBD & \TBD & \TBD & \TBD \\
+Grad-weighted attn. & \TBD & \TBD & \TBD & \TBD \\
+Integrated grads    & \TBD & \TBD & \TBD & \TBD \\
+Occlusion           & \TBD & \TBD & \TBD & \TBD \\
+SHAP                & \TBD & \TBD & \TBD & \TBD \\
+\midrule
+Rank ensemble (ours)& \TBD & \TBD & \TBD & \TBD \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Stability}
+\TBD\ \note{Report Spearman and top-10 Jaccard under paraphrase; highlight
+distractor mass.}
+
+\subsection{Plausibility}
+\TBD\ \note{Report Likert means, Krippendorff's alpha, and sign agreement.
+Sign agreement is undefined for the two unsigned methods -- state this as a
+result, not a gap in the table.}
+
+\subsection{Do the axes agree?}
+This is the central analysis. We rank the six methods on each axis and compute
+rank correlation between axes. \TBD
+
+\begin{figure}[t]
+\centering
+% \includegraphics[width=\columnwidth]{../results/figures/fig6_cost_vs_faithfulness.png}
+\fbox{\parbox[c][3.2cm][c]{0.92\columnwidth}{\centering
+\ph{Figure placeholder: faithfulness vs.\ compute cost, log $x$-axis.\\
+Generated by \texttt{scripts/07\_figures\_tables.py}}}}
+\caption{Faithfulness against computational cost per note. Methods in the
+upper-left are preferable for deployment.}
+\label{fig:cost}
+\end{figure}
+
+\subsection{Rank-ensemble explainer}\label{sec:ensemble}
+We combine normalised attention rollout with occlusion by averaging max-abs
+normalised scores. \TBD
+
+% =====================================================================
+\section{System}
+% =====================================================================
+
+The evaluation harness is released together with a working clinician-facing
+application: a FastAPI service exposing prediction and explanation endpoints, and
+a React/Next.js dashboard rendering the risk score, the note with word-level
+highlighting, and a ranked contribution chart, with a toggle between explanation
+methods.
+
+Two interface decisions follow directly from our findings. Unsigned methods are
+rendered on a single-hue scale with the ``protective'' panel suppressed, since
+displaying a low-attention word in a contrasting colour would assert a direction
+the method cannot express. The decision threshold is drawn explicitly on the risk
+gauge, because for a rare outcome the operating point is far below 0.5 and a
+gauge without it invites the reading that below half the dial is safe.
+
+% =====================================================================
+\section{Discussion}
+% =====================================================================
+
+\TBD
+
+\note{Write after results. If the axes dissociate, the message is: explainer
+choice is a clinical decision requiring justification, and papers reporting a
+single method without faithfulness evidence are underdetermined. If the axes
+converge, the message is: cheap methods suffice, which is a deployment
+recommendation. Decide framing from the numbers, never before.}
+
+% =====================================================================
+\section{Limitations}
+% =====================================================================
+
+Our study covers a single institution's data and a single clinical outcome;
+generalisation to other cohorts and outcomes is untested. The plausibility study
+uses \ph{three} raters on \ph{40} notes, which is adequate to detect large
+differences between methods but not small ones. Sign agreement is measured on the
+synthetic corpus, where the true direction of each factor is known by
+construction; on MIMIC-III we rely on rater judgement. Attention rollout is
+class-agnostic by construction, which limits what an attention-only system can
+claim but is a property of the method rather than a defect of our
+implementation. Finally, the system is a research prototype and has not been
+validated for clinical use.
+
+% =====================================================================
+\section{Conclusion}
+% =====================================================================
+
+\TBD
+
+% =====================================================================
+\section*{Acknowledgment}
+% =====================================================================
+\ph{Acknowledgements. Note PhysioNet data use agreement here if required.}
+
+% =====================================================================
+\begin{thebibliography}{00}
+
+\bibitem{alsentzer2019} E. Alsentzer \emph{et al.}, ``Publicly available clinical BERT embeddings,'' in \emph{Proc. Clinical NLP Workshop}, 2019, pp. 72--78.
+
+\bibitem{lee2020} J. Lee \emph{et al.}, ``BioBERT: a pre-trained biomedical language representation model for biomedical text mining,'' \emph{Bioinformatics}, vol. 36, no. 4, pp. 1234--1240, 2020.
+
+\bibitem{gu2021} Y. Gu \emph{et al.}, ``Domain-specific language model pretraining for biomedical natural language processing,'' \emph{ACM Trans. Comput. Healthcare}, vol. 3, no. 1, pp. 1--23, 2021.
+
+\bibitem{huang2019} K. Huang, J. Altosaar, and R. Ranganath, ``ClinicalBERT: Modeling clinical notes and predicting hospital readmission,'' \emph{arXiv:1904.05342}, 2019.
+
+\bibitem{vanaken2021} B. van Aken \emph{et al.}, ``Clinical outcome prediction from admission notes using self-supervised knowledge integration,'' in \emph{Proc. EACL}, 2021, pp. 881--893.
+
+\bibitem{jain2019} S. Jain and B. C. Wallace, ``Attention is not explanation,'' in \emph{Proc. NAACL-HLT}, 2019, pp. 3543--3556.
+
+\bibitem{wiegreffe2019} S. Wiegreffe and Y. Pinter, ``Attention is not not explanation,'' in \emph{Proc. EMNLP-IJCNLP}, 2019, pp. 11--20.
+
+\bibitem{serrano2019} S. Serrano and N. A. Smith, ``Is attention interpretable?,'' in \emph{Proc. ACL}, 2019, pp. 2931--2951.
+
+\bibitem{abnar2020} S. Abnar and W. Zuidema, ``Quantifying attention flow in transformers,'' in \emph{Proc. ACL}, 2020, pp. 4190--4197.
+
+\bibitem{chefer2021} H. Chefer, S. Gur, and L. Wolf, ``Transformer interpretability beyond attention visualization,'' in \emph{Proc. CVPR}, 2021, pp. 782--791.
+
+\bibitem{deyoung2020} J. DeYoung \emph{et al.}, ``ERASER: A benchmark to evaluate rationalized NLP models,'' in \emph{Proc. ACL}, 2020, pp. 4443--4458.
+
+\bibitem{lundberg2017} S. M. Lundberg and S.-I. Lee, ``A unified approach to interpreting model predictions,'' in \emph{Proc. NeurIPS}, 2017, pp. 4765--4774.
+
+\bibitem{sundararajan2017} M. Sundararajan, A. Taly, and Q. Yan, ``Axiomatic attribution for deep networks,'' in \emph{Proc. ICML}, 2017, pp. 3319--3328.
+
+\bibitem{ghorbani2019} A. Ghorbani, A. Abid, and J. Zou, ``Interpretation of neural networks is fragile,'' in \emph{Proc. AAAI}, 2019, pp. 3681--3688.
+
+\bibitem{johnson2016} A. E. W. Johnson \emph{et al.}, ``MIMIC-III, a freely accessible critical care database,'' \emph{Scientific Data}, vol. 3, 160035, 2016.
+
+\bibitem{delong1988} E. R. DeLong, D. M. DeLong, and D. L. Clarke-Pearson, ``Comparing the areas under two or more correlated receiver operating characteristic curves: a nonparametric approach,'' \emph{Biometrics}, vol. 44, no. 3, pp. 837--845, 1988.
+
+\bibitem{lin2017} T.-Y. Lin \emph{et al.}, ``Focal loss for dense object detection,'' in \emph{Proc. ICCV}, 2017, pp. 2980--2988.
+
+\end{thebibliography}
+
+\end{document}
