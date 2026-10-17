@@ -1,0 +1,83 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>MedXplain explanation review</title>
+<style>
+ body{font:14px/1.6 system-ui,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;color:#1e293b}
+ pre{background:#f8fafc;border:1px solid #e2e8f0;padding:1rem;white-space:pre-wrap;font-size:12px;
+      max-height:340px;overflow:auto;border-radius:8px}
+ .cand{border:1px solid #e2e8f0;border-radius:8px;padding:.75rem 1rem;margin:.5rem 0;background:#fff}
+ .cand h4{margin:0 0 .4rem} .ph{background:#fee2e2;padding:1px 6px;border-radius:4px;font-family:ui-monospace,monospace;font-size:12px}
+ section{border-top:2px solid #e2e8f0;padding-top:1.5rem;margin-top:2rem}
+ ol.rubric li{margin:.25rem 0}
+</style></head><body>
+<h1>MedXplain &mdash; explanation review</h1>
+<pre style="max-height:none">For each note you will see the model's predicted risk and several sets of
+highlighted phrases, labelled A, B, C ... The labels are shuffled per note and do
+not correspond to the same method across notes.
+
+For each labelled set, answer:
+  Q1 (1-5) Clinical sensibility: do the highlighted phrases correspond to the
+           factors a clinician would actually weigh for this outcome?
+  Q2 (1-5) Completeness: are the important drivers present in the note covered?
+  Q3 (yes/no) Would you be willing to show this explanation to a colleague
+           alongside the risk score?
+
+Score the explanation, not the prediction: an explanation can be good even if you
+disagree with the risk score, and vice versa.
+</pre>
+<h2>Rubric</h2><ol class="rubric" reversed><li><b>5</b> - All highlighted phrases are clinically relevant to the predicted risk; nothing important is missed.</li><li><b>4</b> - Most highlighted phrases are relevant; minor irrelevant highlights or one missed factor.</li><li><b>3</b> - Mixed - some genuinely relevant phrases alongside clearly irrelevant ones.</li><li><b>2</b> - Mostly irrelevant highlights; at best incidental overlap with the real drivers.</li><li><b>1</b> - Highlights are clinically meaningless or actively misleading.</li></ol>
+<p>Record your scores in <code>responses_template.csv</code> (copy it to
+<code>responses.csv</code>), then run
+<code>python scripts/06_plausibility.py --score results/human_review/responses.csv</code>.</p>
+<section>
+  <h3>SYN000110 &mdash; predicted risk 46.6%</h3>
+  <pre>Chief Complaint: altered mental status
+
+History of Present Illness:
+Mr./Ms. &lt;NAME&gt; is a 48 year old male who presented to the &lt;PLACE&gt; emergency department on &lt;DATE&gt; with altered mental status. No known drug allergies documented in the chart. Patient is a retired schoolteacher who enjoys gardening. Active polysubstance use, left AMA during a prior admission.
+
+Physical Examination:
+Vitals on admission: T 39.3 C, HR 101, BP 168/59, RR 29, SpO2 87 percent on 6L NC.
+
+Pertinent Results:
+WBC 9.2, Hct 27.3, Plt 149, Cr 0.5, Na 146, K 4.7. Chest radiograph reviewed with the radiology team.
+
+Brief Hospital Course:
+The patient was seen daily by the primary team.
+
+Discharge Medications:
+1. Pantoprazole 40 mg PO daily
+2. Multivitamin one tablet PO daily
+3. Atorvastatin 40 mg PO qHS
+4. Acetaminophen 650 mg PO q6h PRN pain
+5. Heparin 5000 units SC TID for DVT prophylaxis
+6. Docusate sodium 100 mg PO BID</pre>
+  <div class='cand'><h4>Set A</h4><p><span class='ph'>chart.</span> &nbsp;·&nbsp; <span class='ph'>Illness:</span> &nbsp;·&nbsp; <span class='ph'>status.</span> &nbsp;·&nbsp; <span class='ph'>Mr./Ms.</span> &nbsp;·&nbsp; <span class='ph'>&lt;NAME&gt;</span> &nbsp;·&nbsp; <span class='ph'>Complaint:</span> &nbsp;·&nbsp; <span class='ph'>&lt;DATE&gt;</span> &nbsp;·&nbsp; <span class='ph'>allergies</span></p></div><div class='cand'><h4>Set B</h4><p><span class='ph'>Mr./Ms.</span> &nbsp;·&nbsp; <span class='ph'>schoolteacher</span> &nbsp;·&nbsp; <span class='ph'>allergies</span> &nbsp;·&nbsp; <span class='ph'>chart.</span> &nbsp;·&nbsp; <span class='ph'>&lt;NAME&gt;</span> &nbsp;·&nbsp; <span class='ph'>&lt;DATE&gt;</span> &nbsp;·&nbsp; <span class='ph'>&lt;PLACE&gt;</span> &nbsp;·&nbsp; <span class='ph'>status.</span></p></div>
+</section><section>
+  <h3>SYN000092 &mdash; predicted risk 51.7%</h3>
+  <pre>Chief Complaint: chest pain
+
+History of Present Illness:
+Mr./Ms. &lt;NAME&gt; is a 79 year old female who presented to the &lt;PLACE&gt; emergency department on &lt;DATE&gt; with chest pain. Alzheimer type dementia with recurrent aspiration. No known drug allergies documented in the chart.
+
+Physical Examination:
+Vitals on admission: T 36.7 C, HR 127, BP 155/92, RR 13, SpO2 100 percent on 2L NC. Neck: supple, no lymphadenopathy appreciated.
+
+Pertinent Results:
+WBC 20.0, Hct 32.6, Plt 49, Cr 1.2, Na 143, K 3.5. EKG showed normal sinus rhythm at a rate of 78. White count normalized to 7.2 and lactate cleared to 1.1. Lactate peaked at 7.8 mmol/L.
+
+Brief Hospital Course:
+Developed ARDS with P/F ratio of 90 requiring proning. Acute metabolic encephalopathy without return to baseline mental status.
+
+Discharge Medications:
+1. Pantoprazole 40 mg PO daily
+2. Heparin 5000 units SC TID for DVT prophylaxis
+3. Acetaminophen 650 mg PO q6h PRN pain
+4. Docusate sodium 100 mg PO BID
+5. Atorvastatin 40 mg PO qHS
+6. Multivitamin one tablet PO daily
+
+Discharge Disposition and Condition:
+Ambulating independently and tolerating a regular diet at discharge.</pre>
+  <div class='cand'><h4>Set A</h4><p><span class='ph'>Mr./Ms.</span> &nbsp;·&nbsp; <span class='ph'>allergies</span> &nbsp;·&nbsp; <span class='ph'>aspiration.</span> &nbsp;·&nbsp; <span class='ph'>Alzheimer</span> &nbsp;·&nbsp; <span class='ph'>dementia</span> &nbsp;·&nbsp; <span class='ph'>&lt;DATE&gt;</span> &nbsp;·&nbsp; <span class='ph'>&lt;NAME&gt;</span> &nbsp;·&nbsp; <span class='ph'>&lt;PLACE&gt;</span></p></div><div class='cand'><h4>Set B</h4><p><span class='ph'>Mr./Ms.</span> &nbsp;·&nbsp; <span class='ph'>allergies</span> &nbsp;·&nbsp; <span class='ph'>aspiration.</span> &nbsp;·&nbsp; <span class='ph'>dementia</span> &nbsp;·&nbsp; <span class='ph'>Alzheimer</span> &nbsp;·&nbsp; <span class='ph'>&lt;NAME&gt;</span> &nbsp;·&nbsp; <span class='ph'>&lt;DATE&gt;</span> &nbsp;·&nbsp; <span class='ph'>&lt;PLACE&gt;</span></p></div>
+</section>
+</body></html>

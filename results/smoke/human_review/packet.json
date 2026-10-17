@@ -1,0 +1,87 @@
+{
+  "instructions": "For each note you will see the model's predicted risk and several sets of\nhighlighted phrases, labelled A, B, C ... The labels are shuffled per note and do\nnot correspond to the same method across notes.\n\nFor each labelled set, answer:\n  Q1 (1-5) Clinical sensibility: do the highlighted phrases correspond to the\n           factors a clinician would actually weigh for this outcome?\n  Q2 (1-5) Completeness: are the important drivers present in the note covered?\n  Q3 (yes/no) Would you be willing to show this explanation to a colleague\n           alongside the risk score?\n\nScore the explanation, not the prediction: an explanation can be good even if you\ndisagree with the risk score, and vice versa.\n",
+  "rubric": {
+    "5": "All highlighted phrases are clinically relevant to the predicted risk; nothing important is missed.",
+    "4": "Most highlighted phrases are relevant; minor irrelevant highlights or one missed factor.",
+    "3": "Mixed - some genuinely relevant phrases alongside clearly irrelevant ones.",
+    "2": "Mostly irrelevant highlights; at best incidental overlap with the real drivers.",
+    "1": "Highlights are clinically meaningless or actively misleading."
+  },
+  "items": [
+    {
+      "note_id": "SYN000110",
+      "text": "Chief Complaint: altered mental status\n\nHistory of Present Illness:\nMr./Ms. <NAME> is a 48 year old male who presented to the <PLACE> emergency department on <DATE> with altered mental status. No known drug allergies documented in the chart. Patient is a retired schoolteacher who enjoys gardening. Active polysubstance use, left AMA during a prior admission.\n\nPhysical Examination:\nVitals on admission: T 39.3 C, HR 101, BP 168/59, RR 29, SpO2 87 percent on 6L NC.\n\nPertinent Results:\nWBC 9.2, Hct 27.3, Plt 149, Cr 0.5, Na 146, K 4.7. Chest radiograph reviewed with the radiology team.\n\nBrief Hospital Course:\nThe patient was seen daily by the primary team.\n\nDischarge Medications:\n1. Pantoprazole 40 mg PO daily\n2. Multivitamin one tablet PO daily\n3. Atorvastatin 40 mg PO qHS\n4. Acetaminophen 650 mg PO q6h PRN pain\n5. Heparin 5000 units SC TID for DVT prophylaxis\n6. Docusate sodium 100 mg PO BID",
+      "probability": 0.46606311202049255,
+      "candidates": {
+        "A": [
+          "chart.",
+          "Illness:",
+          "status.",
+          "Mr./Ms.",
+          "<NAME>",
+          "Complaint:",
+          "<DATE>",
+          "allergies"
+        ],
+        "B": [
+          "Mr./Ms.",
+          "schoolteacher",
+          "allergies",
+          "chart.",
+          "<NAME>",
+          "<DATE>",
+          "<PLACE>",
+          "status."
+        ]
+      }
+    },
+    {
+      "note_id": "SYN000092",
+      "text": "Chief Complaint: chest pain\n\nHistory of Present Illness:\nMr./Ms. <NAME> is a 79 year old female who presented to the <PLACE> emergency department on <DATE> with chest pain. Alzheimer type dementia with recurrent aspiration. No known drug allergies documented in the chart.\n\nPhysical Examination:\nVitals on admission: T 36.7 C, HR 127, BP 155/92, RR 13, SpO2 100 percent on 2L NC. Neck: supple, no lymphadenopathy appreciated.\n\nPertinent Results:\nWBC 20.0, Hct 32.6, Plt 49, Cr 1.2, Na 143, K 3.5. EKG showed normal sinus rhythm at a rate of 78. White count normalized to 7.2 and lactate cleared to 1.1. Lactate peaked at 7.8 mmol/L.\n\nBrief Hospital Course:\nDeveloped ARDS with P/F ratio of 90 requiring proning. Acute metabolic encephalopathy without return to baseline mental status.\n\nDischarge Medications:\n1. Pantoprazole 40 mg PO daily\n2. Heparin 5000 units SC TID for DVT prophylaxis\n3. Acetaminophen 650 mg PO q6h PRN pain\n4. Docusate sodium 100 mg PO BID\n5. Atorvastatin 40 mg PO qHS\n6. Multivitamin one tablet PO daily\n\nDischarge Disposition and Condition:\nAmbulating independently and tolerating a regular diet at discharge.",
+      "probability": 0.5172311663627625,
+      "candidates": {
+        "A": [
+          "Mr./Ms.",
+          "allergies",
+          "aspiration.",
+          "Alzheimer",
+          "dementia",
+          "<DATE>",
+          "<NAME>",
+          "<PLACE>"
+        ],
+        "B": [
+          "Mr./Ms.",
+          "allergies",
+          "aspiration.",
+          "dementia",
+          "Alzheimer",
+          "<NAME>",
+          "<DATE>",
+          "<PLACE>"
+        ]
+      }
+    }
+  ],
+  "answer_key": [
+    {
+      "note_id": "SYN000110",
+      "key": {
+        "A": "occlusion",
+        "B": "attention_rollout"
+      }
+    },
+    {
+      "note_id": "SYN000092",
+      "key": {
+        "A": "occlusion",
+        "B": "attention_rollout"
+      }
+    }
+  ],
+  "n_items": 2,
+  "methods": [
+    "attention_rollout",
+    "occlusion"
+  ]
+}

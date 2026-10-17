@@ -26,7 +26,16 @@ interface Props {
 export function HighlightedNote({ text, explanation, threshold = 0.08 }: Props) {
   const [hovered, setHovered] = useState<number | null>(null);
 
-  const segments = useMemo(() => buildSegments(text, explanation.words), [text, explanation.words]);
+  const unread = explanation.meta?.unread_span as [number, number] | null | undefined;
+  const segments = useMemo(() => {
+    if (!unread || unread[1] <= unread[0]) return buildSegments(text, explanation.words, 0, text.length);
+    const [s, e] = unread;
+    return [
+      ...buildSegments(text, explanation.words, 0, s),
+      { text: text.slice(s, e), unread: true },
+      ...buildSegments(text, explanation.words, e, text.length),
+    ];
+  }, [text, explanation.words, unread]);
   const peak = useMemo(
     () => Math.max(...explanation.words.map((w) => Math.abs(w.score)), 1e-9),
     [explanation.words],
@@ -36,7 +45,17 @@ export function HighlightedNote({ text, explanation, threshold = 0.08 }: Props) 
     <div className="relative">
       <div className="note-surface rounded-lg bg-white p-4 font-mono text-[13px] text-slate-800">
         {segments.map((segment, index) =>
-          segment.word ? (
+          segment.unread ? (
+            <span key={index} className="text-slate-400" title="The model did not read this part of the note">
+              <span className="mx-1 inline-block rounded bg-slate-200 px-1.5 py-0.5 align-middle font-sans text-[10px] font-medium uppercase tracking-wide text-slate-600">
+                Not read by the model
+              </span>
+              {segment.text}
+              <span className="mx-1 inline-block rounded bg-slate-200 px-1.5 py-0.5 align-middle font-sans text-[10px] font-medium uppercase tracking-wide text-slate-600">
+                End of unread part
+              </span>
+            </span>
+          ) : segment.word ? (
             <span
               key={index}
               className="note-token"
@@ -71,8 +90,8 @@ export function HighlightLegend({ signed }: { signed: boolean }) {
     <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500">
       {signed ? (
         <>
-          <LegendSwatch label="Lowers risk" colors={["#bfdbfe", "#3b82f6"]} reverse />
-          <LegendSwatch label="Raises risk" colors={["#fecaca", "#dc2626"]} />
+          <LegendSwatch label="Lowered the model's score" colors={["#bfdbfe", "#3b82f6"]} reverse />
+          <LegendSwatch label="Raised the model's score" colors={["#fecaca", "#dc2626"]} />
           <span>Colour intensity is relative to the strongest word in this note.</span>
         </>
       ) : (
@@ -80,7 +99,7 @@ export function HighlightLegend({ signed }: { signed: boolean }) {
           <LegendSwatch label="Used by the model" colors={["#ddd6fe", "#7c3aed"]} />
           <span>
             This method is unsigned: intensity means &ldquo;influenced the prediction&rdquo;, not
-            &ldquo;raised the risk&rdquo;.
+            &ldquo;raised the risk&rdquo;. It is not evidence of cause.
           </span>
         </>
       )}
@@ -111,6 +130,8 @@ function LegendSwatch({
 interface Segment {
   text: string;
   word?: WordScore;
+  /** Part of the note outside the model's input window. */
+  unread?: boolean;
 }
 
 /**
@@ -119,10 +140,12 @@ interface Segment {
  * the highlight lands on exactly the span the model scored — re-splitting on
  * whitespace here would drift from the server's word boundaries.
  */
-function buildSegments(text: string, words: WordScore[]): Segment[] {
-  const ordered = [...words].filter((w) => w.start >= 0 && w.end > w.start).sort((a, b) => a.start - b.start);
+function buildSegments(text: string, words: WordScore[], from: number, to: number): Segment[] {
+  const ordered = [...words]
+    .filter((w) => w.start >= from && w.end <= to && w.end > w.start)
+    .sort((a, b) => a.start - b.start);
   const segments: Segment[] = [];
-  let cursor = 0;
+  let cursor = from;
 
   for (const word of ordered) {
     if (word.start < cursor) continue; // defensive: ignore overlaps
@@ -130,7 +153,7 @@ function buildSegments(text: string, words: WordScore[]): Segment[] {
     segments.push({ text: text.slice(word.start, word.end), word });
     cursor = word.end;
   }
-  if (cursor < text.length) segments.push({ text: text.slice(cursor) });
+  if (cursor < to) segments.push({ text: text.slice(cursor, to) });
   return segments;
 }
 
@@ -148,5 +171,5 @@ function tint(relative: number, signed: boolean, threshold: number): string {
 function formatScore(score: number, signed: boolean): string {
   const value = score.toFixed(3);
   if (!signed) return `importance ${Math.abs(score).toFixed(3)}`;
-  return score > 0 ? `+${value} (raises risk)` : `${value} (lowers risk)`;
+  return score > 0 ? `+${value} (raised model score)` : `${value} (lowered model score)`;
 }

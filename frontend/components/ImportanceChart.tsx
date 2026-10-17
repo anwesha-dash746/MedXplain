@@ -73,8 +73,8 @@ export function ImportanceChart({ explanation, topK = 12 }: Props) {
               value.toFixed(4),
               explanation.signed
                 ? value > 0
-                  ? "raises risk"
-                  : "lowers risk"
+                  ? "raised model score"
+                  : "lowered model score"
                 : "importance",
             ]}
           />

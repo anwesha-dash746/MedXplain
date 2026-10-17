@@ -1,13 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Controls } from "@/components/Controls";
 import { HistoryPanel } from "@/components/HistoryPanel";
 import { NoteInput } from "@/components/NoteInput";
 import { ResultPanel } from "@/components/ResultPanel";
-import { ResultsView } from "@/components/ResultsView";
+import { ClinicalWorkspace } from "@/components/ClinicalWorkspace";
+import { StaticPeerConsult } from "@/components/StaticPeerConsult";
 import {
   ApiError,
+  analyzeClinical,
   getExamples,
   getHealth,
   getMethods,
@@ -15,6 +17,7 @@ import {
   predict,
 } from "@/lib/api";
 import type {
+  ClinicalAnalysis,
   ExampleNote,
   ExplanationMethod,
   HealthResponse,
@@ -24,7 +27,7 @@ import type {
 } from "@/lib/types";
 
 const MAX_CHARS = 40000;
-type Tab = "analyse" | "results" | "about";
+type Tab = "analyse" | "results" | "peer" | "about";
 
 export default function Dashboard() {
   const [tab, setTab] = useState<Tab>("analyse");
@@ -49,6 +52,17 @@ export default function Dashboard() {
   const [error, setError] = useState<{ message: string; hint?: string } | null>(null);
   const [historyVersion, setHistoryVersion] = useState(0);
 
+  // Clinical workspace for the same submission. Both requests carry the
+  // submission number so a slow response from an earlier note can never be
+  // displayed against a later one.
+  const [clinical, setClinical] = useState<ClinicalAnalysis | null>(null);
+  const [clinicalLoading, setClinicalLoading] = useState(false);
+  const [clinicalError, setClinicalError] = useState<string | null>(null);
+  const [predictError, setPredictError] = useState<string | null>(null);
+  const submission = useRef(0);
+  // bumped by Results' "Ask a Peer Physician" to prefill Peer Consult with the analysed note
+  const [peerRequest, setPeerRequest] = useState(0);
+
   // Bootstrap: everything the controls need comes from the API, so the UI can
   // never offer a model or method the server cannot actually serve.
   useEffect(() => {
@@ -66,8 +80,8 @@ export default function Dashboard() {
         setModels(m);
         setMethods(me);
         setExamples(ex);
-        const firstAvailable = m.find((x) => x.available);
-        setModel(firstAvailable?.key ?? h.default_model);
+        const preferred = m.find((x) => x.available && x.key === h.default_model) ?? m.find((x) => x.available);
+        setModel(preferred?.key ?? h.default_model);
         setMethod((h.default_method as ExplanationMethod) ?? "attention_rollout");
       } catch (err) {
         if (!cancelled) setError(toError(err));
@@ -80,9 +94,31 @@ export default function Dashboard() {
 
   const runPrediction = useCallback(async () => {
     if (!note.trim()) return;
-    setLoading(true);
-    setError(null);
+    const id = ++submission.current;
     const submitted = note;
+    // Clear everything from the previous case before anything new arrives.
+    setLoading(true);
+    setClinicalLoading(true);
+    setError(null);
+    setPredictError(null);
+    setClinicalError(null);
+    setResult(null);
+    setClinical(null);
+    // The backend cleans the note before scoring; highlight and evidence offsets
+    // refer to the submitted text, so keep the exact string that was analysed.
+    setAnalysedNote(submitted);
+
+    analyzeClinical(submitted)
+      .then((response) => {
+        if (submission.current === id) setClinical(response);
+      })
+      .catch((err) => {
+        if (submission.current === id) setClinicalError(toError(err).message);
+      })
+      .finally(() => {
+        if (submission.current === id) setClinicalLoading(false);
+      });
+
     try {
       const response = await predict({
         text: submitted,
@@ -90,16 +126,17 @@ export default function Dashboard() {
         method: compareMode ? undefined : method,
         compareMethods: compareMode ? compareMethods : undefined,
       });
+      if (submission.current !== id) return;
       setResult(response);
-      // The backend cleans the note before scoring; highlight offsets refer to
-      // the submitted text, so keep the exact string that was analysed.
-      setAnalysedNote(submitted);
       setHistoryVersion((v) => v + 1);
     } catch (err) {
-      setError(toError(err));
+      if (submission.current !== id) return;
+      const e = toError(err);
+      setError(e);
+      setPredictError(e.message);
       setResult(null);
     } finally {
-      setLoading(false);
+      if (submission.current === id) setLoading(false);
     }
   }, [note, model, method, compareMode, compareMethods]);
 
@@ -155,13 +192,47 @@ export default function Dashboard() {
 
             <div>
               {loading && <LoadingState compareMode={compareMode} methods={compareMethods} />}
-              {!loading && result && <ResultPanel result={result} noteText={analysedNote} />}
+              {!loading && result && (
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => setTab("results")}
+                    className="flex w-full items-center justify-between rounded-lg border border-clinical-200 bg-clinical-50 px-4 py-3 text-left text-sm text-clinical-800 hover:bg-clinical-100"
+                  >
+                    <span>
+                      <strong>Open the clinical workspace</strong>: case summary, documentation
+                      check, follow-up and comparable previous cases for this note.
+                    </span>
+                    <span aria-hidden>→</span>
+                  </button>
+                  <ResultPanel result={result} noteText={analysedNote} />
+                </div>
+              )}
               {!loading && !result && <EmptyState />}
             </div>
           </div>
         )}
 
-        {tab === "results" && <ResultsView />}
+        {tab === "results" && (
+          <ClinicalWorkspace
+            result={result}
+            clinical={clinical}
+            analysedNote={analysedNote}
+            currentNote={note}
+            loading={loading || clinicalLoading}
+            predictError={predictError}
+            clinicalError={clinicalError}
+            onGoToAnalyse={() => setTab("analyse")}
+            onOpenPeerConsult={() => {
+              setPeerRequest((n) => n + 1);
+              setTab("peer");
+            }}
+          />
+        )}
+        {/* kept mounted so an unfinished question and the session history survive tab switches */}
+        <div hidden={tab !== "peer"}>
+          <StaticPeerConsult latestNote={analysedNote} prefillSignal={peerRequest} />
+        </div>
         {tab === "about" && <About />}
       </main>
 
@@ -184,6 +255,7 @@ function Header({
   const tabs: { key: Tab; label: string }[] = [
     { key: "analyse", label: "Analyse" },
     { key: "results", label: "Results" },
+    { key: "peer", label: "Peer Consult" },
     { key: "about", label: "About" },
   ];
   return (

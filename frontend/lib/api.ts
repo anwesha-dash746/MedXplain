@@ -1,4 +1,5 @@
 import type {
+  ClinicalAnalysis,
   ExampleNote,
   ExplanationMethod,
   HealthResponse,
@@ -44,7 +45,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     let hint: string | undefined;
     try {
       const body = await response.json();
-      detail = body.detail ?? detail;
+      detail = formatDetail(body.detail) ?? detail;
       hint = body.hint;
     } catch {
       /* response had no JSON body */
@@ -54,7 +55,25 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     }
     throw new ApiError(detail, response.status, hint);
   }
+  if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
+}
+
+/** Shared by the Peer Consult client, which adds its own Authorization header. */
+export const apiRequest = request;
+
+/** FastAPI validation errors arrive as a list; turn them into one readable sentence. */
+function formatDetail(detail: unknown): string | undefined {
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((d: any) => {
+        const field = Array.isArray(d?.loc) ? d.loc[d.loc.length - 1] : "";
+        return field ? `${String(field).replace(/_/g, " ")}: ${d?.msg ?? "invalid"}` : d?.msg ?? "invalid";
+      })
+      .join("; ");
+  }
+  return undefined;
 }
 
 export interface PredictOptions {
@@ -89,3 +108,6 @@ export const getExamples = () => request<ExampleNote[]>("/examples");
 export const getHistory = () => request<HistoryEntry[]>("/history");
 export const getResults = () => request<ResultsPayload>("/results");
 export const clearHistory = () => request<{ cleared: boolean }>("/history", { method: "DELETE" });
+
+export const analyzeClinical = (text: string) =>
+  request<ClinicalAnalysis>("/clinical/analyze", { method: "POST", body: JSON.stringify({ text }) });

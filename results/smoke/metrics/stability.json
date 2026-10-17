@@ -1,0 +1,463 @@
+{
+  "model": "clinicalbert",
+  "n_notes": 3,
+  "perturbations": [
+    "near_duplicate",
+    "paraphrase",
+    "distractor"
+  ],
+  "methods": {
+    "attention_rollout": {
+      "n_notes": 3,
+      "near_duplicate": {
+        "n": 3,
+        "spearman": {
+          "mean": 1.0,
+          "std": 7.850462293418876e-17
+        },
+        "kendall_tau": {
+          "mean": 1.0,
+          "std": 7.850462293418876e-17
+        },
+        "cosine": {
+          "mean": 1.0,
+          "std": 0.0
+        },
+        "top_k_jaccard": {
+          "mean": 1.0,
+          "std": 0.0
+        },
+        "top_k_overlap": {
+          "mean": 1.0,
+          "std": 0.0
+        },
+        "probability_shift": {
+          "mean": 0.0,
+          "std": 0.0
+        },
+        "vocabulary_overlap": {
+          "mean": 1.0,
+          "std": 0.0
+        }
+      },
+      "paraphrase": {
+        "n": 3,
+        "spearman": {
+          "mean": 0.9606470473472909,
+          "std": 0.043697010208564736
+        },
+        "kendall_tau": {
+          "mean": 0.9537055562388542,
+          "std": 0.04836290563629647
+        },
+        "cosine": {
+          "mean": 0.9661579155119474,
+          "std": 0.05491705350829757
+        },
+        "top_k_jaccard": {
+          "mean": 0.724941724941725,
+          "std": 0.16149657879430096
+        },
+        "top_k_overlap": {
+          "mean": 0.8333333333333334,
+          "std": 0.11547005383792519
+        },
+        "probability_shift": {
+          "mean": 0.009465565284093222,
+          "std": 0.009663138561167031
+        },
+        "vocabulary_overlap": {
+          "mean": 0.8739714542213975,
+          "std": 0.012360918081865626
+        }
+      },
+      "distractor": {
+        "n": 3,
+        "spearman": {
+          "mean": 1.0,
+          "std": 7.850462293418876e-17
+        },
+        "kendall_tau": {
+          "mean": 1.0,
+          "std": 7.850462293418876e-17
+        },
+        "cosine": {
+          "mean": 1.0,
+          "std": 0.0
+        },
+        "top_k_jaccard": {
+          "mean": 1.0,
+          "std": 0.0
+        },
+        "top_k_overlap": {
+          "mean": 1.0,
+          "std": 0.0
+        },
+        "probability_shift": {
+          "mean": 0.0,
+          "std": 0.0
+        },
+        "distractor_mass": {
+          "mean": 0.05206112832358176,
+          "std": 0.040024093584571305
+        },
+        "vocabulary_overlap": {
+          "mean": 0.9449674359558898,
+          "std": 0.010592373777630613
+        }
+      }
+    },
+    "occlusion": {
+      "n_notes": 3,
+      "near_duplicate": {
+        "n": 3,
+        "spearman": {
+          "mean": 1.0,
+          "std": 7.850462293418876e-17
+        },
+        "kendall_tau": {
+          "mean": 1.0,
+          "std": 0.0
+        },
+        "cosine": {
+          "mean": 1.0,
+          "std": 2.3551386880256624e-16
+        },
+        "top_k_jaccard": {
+          "mean": 1.0,
+          "std": 0.0
+        },
+        "top_k_overlap": {
+          "mean": 0.9666666666666667,
+          "std": 0.05773502691896257
+        },
+        "probability_shift": {
+          "mean": 0.0,
+          "std": 0.0
+        },
+        "vocabulary_overlap": {
+          "mean": 1.0,
+          "std": 0.0
+        }
+      },
+      "paraphrase": {
+        "n": 3,
+        "spearman": {
+          "mean": 0.5580363868576063,
+          "std": 0.4134761336727798
+        },
+        "kendall_tau": {
+          "mean": 0.5311209397849154,
+          "std": 0.40270605985068164
+        },
+        "cosine": {
+          "mean": 0.8213764056210162,
+          "std": 0.30133718888981353
+        },
+        "top_k_jaccard": {
+          "mean": 0.6097643097643098,
+          "std": 0.4337796826896208
+        },
+        "top_k_overlap": {
+          "mean": 0.6666666666666666,
+          "std": 0.40414518843273806
+        },
+        "probability_shift": {
+          "mean": 0.009465495745340982,
+          "std": 0.009663172098348004
+        },
+        "vocabulary_overlap": {
+          "mean": 0.8739714542213975,
+          "std": 0.012360918081865626
+        }
+      },
+      "distractor": {
+        "n": 3,
+        "spearman": {
+          "mean": 1.0,
+          "std": 7.850462293418876e-17
+        },
+        "kendall_tau": {
+          "mean": 1.0,
+          "std": 0.0
+        },
+        "cosine": {
+          "mean": 1.0,
+          "std": 2.3551386880256624e-16
+        },
+        "top_k_jaccard": {
+          "mean": 1.0,
+          "std": 0.0
+        },
+        "top_k_overlap": {
+          "mean": 0.9666666666666667,
+          "std": 0.05773502691896257
+        },
+        "probability_shift": {
+          "mean": 0.0,
+          "std": 0.0
+        },
+        "distractor_mass": {
+          "mean": 0.021623279600014794,
+          "std": 0.02560547537295212
+        },
+        "vocabulary_overlap": {
+          "mean": 0.9449674359558898,
+          "std": 0.010592373777630613
+        }
+      }
+    }
+  },
+  "per_note": {
+    "attention_rollout": [
+      {
+        "method": "attention_rollout",
+        "base_probability": 0.46606311202049255,
+        "near_duplicate": {
+          "n_shared_words": 125,
+          "vocabulary_overlap": 1.0,
+          "probability_shift": 0.0,
+          "spearman": 1.0,
+          "kendall_tau": 0.9999999999999999,
+          "pearson": 0.9999999999999999,
+          "cosine": 1.0,
+          "top_k": 10,
+          "top_k_jaccard": 1.0,
+          "top_k_overlap": 1.0
+        },
+        "paraphrase": {
+          "n_shared_words": 118,
+          "vocabulary_overlap": 0.8872180451127819,
+          "probability_shift": 0.0018625855445861816,
+          "spearman": 0.9999024883747859,
+          "kendall_tau": 0.9962049335863377,
+          "pearson": 0.9999255296493966,
+          "cosine": 0.9999368469790897,
+          "top_k": 10,
+          "top_k_jaccard": 0.8181818181818182,
+          "top_k_overlap": 0.9
+        },
+        "distractor": {
+          "n_shared_words": 125,
+          "vocabulary_overlap": 0.9328358208955224,
+          "probability_shift": 0.0,
+          "spearman": 1.0,
+          "kendall_tau": 0.9999999999999999,
+          "pearson": 0.9999999999999999,
+          "cosine": 1.0,
+          "top_k": 10,
+          "top_k_jaccard": 1.0,
+          "top_k_overlap": 1.0,
+          "distractor_mass": 0.09783818205375772
+        }
+      },
+      {
+        "method": "attention_rollout",
+        "base_probability": 0.5172311663627625,
+        "near_duplicate": {
+          "n_shared_words": 151,
+          "vocabulary_overlap": 1.0,
+          "probability_shift": 0.0,
+          "spearman": 1.0,
+          "kendall_tau": 1.0,
+          "pearson": 0.9999999999999999,
+          "cosine": 1.0,
+          "top_k": 10,
+          "top_k_jaccard": 1.0,
+          "top_k_overlap": 1.0
+        },
+        "paraphrase": {
+          "n_shared_words": 143,
+          "vocabulary_overlap": 0.8719512195121951,
+          "probability_shift": 0.02033969759941101,
+          "spearman": 0.9135659761551643,
+          "kendall_tau": 0.9010819478961825,
+          "pearson": 0.8878873842104166,
+          "cosine": 0.9027913521093436,
+          "top_k": 10,
+          "top_k_jaccard": 0.5384615384615384,
+          "top_k_overlap": 0.7
+        },
+        "distractor": {
+          "n_shared_words": 151,
+          "vocabulary_overlap": 0.949685534591195,
+          "probability_shift": 0.0,
+          "spearman": 1.0,
+          "kendall_tau": 1.0,
+          "pearson": 0.9999999999999999,
+          "cosine": 1.0,
+          "top_k": 10,
+          "top_k_jaccard": 1.0,
+          "top_k_overlap": 1.0,
+          "distractor_mass": 0.023670412702647713
+        }
+      },
+      {
+        "method": "attention_rollout",
+        "base_probability": 0.4474280774593353,
+        "near_duplicate": {
+          "n_shared_words": 140,
+          "vocabulary_overlap": 1.0,
+          "probability_shift": 0.0,
+          "spearman": 0.9999999999999999,
+          "kendall_tau": 1.0,
+          "pearson": 1.0,
+          "cosine": 1.0,
+          "top_k": 10,
+          "top_k_jaccard": 1.0,
+          "top_k_overlap": 1.0
+        },
+        "paraphrase": {
+          "n_shared_words": 132,
+          "vocabulary_overlap": 0.8627450980392157,
+          "probability_shift": 0.006194412708282471,
+          "spearman": 0.9684726775119226,
+          "kendall_tau": 0.9638297872340426,
+          "pearson": 0.9950486851766113,
+          "cosine": 0.9957455474474087,
+          "top_k": 10,
+          "top_k_jaccard": 0.8181818181818182,
+          "top_k_overlap": 0.9
+        },
+        "distractor": {
+          "n_shared_words": 140,
+          "vocabulary_overlap": 0.9523809523809523,
+          "probability_shift": 0.0,
+          "spearman": 0.9999999999999999,
+          "kendall_tau": 1.0,
+          "pearson": 1.0,
+          "cosine": 1.0,
+          "top_k": 10,
+          "top_k_jaccard": 1.0,
+          "top_k_overlap": 1.0,
+          "distractor_mass": 0.034674790214339835
+        }
+      }
+    ],
+    "occlusion": [
+      {
+        "method": "occlusion",
+        "base_probability": 0.4660630524158478,
+        "near_duplicate": {
+          "n_shared_words": 125,
+          "vocabulary_overlap": 1.0,
+          "probability_shift": 0.0,
+          "spearman": 1.0,
+          "kendall_tau": 1.0,
+          "pearson": 1.0,
+          "cosine": 0.9999999999999999,
+          "top_k": 10,
+          "top_k_jaccard": 1.0,
+          "top_k_overlap": 1.0
+        },
+        "paraphrase": {
+          "n_shared_words": 118,
+          "vocabulary_overlap": 0.8872180451127819,
+          "probability_shift": 0.0018624961376190186,
+          "spearman": 0.7688605014434601,
+          "kendall_tau": 0.7288791791126915,
+          "pearson": 0.9907159929249298,
+          "cosine": 0.9915245387127143,
+          "top_k": 10,
+          "top_k_jaccard": 0.8181818181818182,
+          "top_k_overlap": 0.9
+        },
+        "distractor": {
+          "n_shared_words": 125,
+          "vocabulary_overlap": 0.9328358208955224,
+          "probability_shift": 0.0,
+          "spearman": 1.0,
+          "kendall_tau": 1.0,
+          "pearson": 1.0,
+          "cosine": 0.9999999999999999,
+          "top_k": 10,
+          "top_k_jaccard": 1.0,
+          "top_k_overlap": 1.0,
+          "distractor_mass": 0.05096573689343838
+        }
+      },
+      {
+        "method": "occlusion",
+        "base_probability": 0.5172311663627625,
+        "near_duplicate": {
+          "n_shared_words": 151,
+          "vocabulary_overlap": 1.0,
+          "probability_shift": 0.0,
+          "spearman": 1.0,
+          "kendall_tau": 1.0,
+          "pearson": 1.0,
+          "cosine": 1.0000000000000002,
+          "top_k": 10,
+          "top_k_jaccard": 1.0,
+          "top_k_overlap": 1.0
+        },
+        "paraphrase": {
+          "n_shared_words": 143,
+          "vocabulary_overlap": 0.8719512195121951,
+          "probability_shift": 0.020339667797088623,
+          "spearman": 0.08164264854955347,
+          "kendall_tau": 0.06776832352087074,
+          "pearson": 0.45110018579792,
+          "cosine": 0.4734500782667949,
+          "top_k": 10,
+          "top_k_jaccard": 0.1111111111111111,
+          "top_k_overlap": 0.2
+        },
+        "distractor": {
+          "n_shared_words": 151,
+          "vocabulary_overlap": 0.949685534591195,
+          "probability_shift": 0.0,
+          "spearman": 1.0,
+          "kendall_tau": 1.0,
+          "pearson": 1.0,
+          "cosine": 1.0000000000000002,
+          "top_k": 10,
+          "top_k_jaccard": 1.0,
+          "top_k_overlap": 1.0,
+          "distractor_mass": 0.00380474749437707
+        }
+      },
+      {
+        "method": "occlusion",
+        "base_probability": 0.4474281668663025,
+        "near_duplicate": {
+          "n_shared_words": 140,
+          "vocabulary_overlap": 1.0,
+          "probability_shift": 0.0,
+          "spearman": 0.9999999999999999,
+          "kendall_tau": 1.0,
+          "pearson": 1.0,
+          "cosine": 1.0000000000000002,
+          "top_k": 10,
+          "top_k_jaccard": 1.0,
+          "top_k_overlap": 0.9
+        },
+        "paraphrase": {
+          "n_shared_words": 132,
+          "vocabulary_overlap": 0.8627450980392157,
+          "probability_shift": 0.006194323301315308,
+          "spearman": 0.8236060105798051,
+          "kendall_tau": 0.7967153167211838,
+          "pearson": 0.9990762369632932,
+          "cosine": 0.9991545998835393,
+          "top_k": 10,
+          "top_k_jaccard": 0.9,
+          "top_k_overlap": 0.9
+        },
+        "distractor": {
+          "n_shared_words": 140,
+          "vocabulary_overlap": 0.9523809523809523,
+          "probability_shift": 0.0,
+          "spearman": 0.9999999999999999,
+          "kendall_tau": 1.0,
+          "pearson": 1.0,
+          "cosine": 1.0000000000000002,
+          "top_k": 10,
+          "top_k_jaccard": 1.0,
+          "top_k_overlap": 0.9,
+          "distractor_mass": 0.010099354412228924
+        }
+      }
+    ]
+  }
+}

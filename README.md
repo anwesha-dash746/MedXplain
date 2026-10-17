@@ -62,6 +62,25 @@ Then open <http://localhost:3000>. API docs are at <http://localhost:8000/docs>.
 `docker compose up --build` runs the stack in containers (checkpoints are
 mounted, not baked into the image).
 
+### Running without network access
+
+The four backbones are fetched from HuggingFace on first use. On an air-gapped
+machine, a CI runner, or a laptop that loses its connection mid-run, prefetch
+them once from a connected machine:
+
+```bash
+python .cache/fetch_models.py     # populates ~/.cache/huggingface/hub
+```
+
+After that no configuration is needed: `medxplain/offline.py` wraps every
+`from_pretrained` call, and when the hub is unreachable it falls back to the
+local cache instead of failing the stage. A model that is genuinely missing
+still raises, so a mistyped model id is never silently swallowed.
+
+Set `MEDXPLAIN_OFFLINE=1` (or the standard `HF_HUB_OFFLINE` /
+`TRANSFORMERS_OFFLINE`) to skip the network probe altogether, which also saves
+a few seconds per model load.
+
 ---
 
 ## What is actually being measured

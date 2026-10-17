@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from typing import Iterable, Literal, Sequence
 
 import numpy as np
+import torch
 
 Normalisation = Literal["none", "l1", "max_abs", "zscore"]
 
@@ -196,32 +197,80 @@ def build_token_attributions(
     return out
 
 
-def encode_with_offsets(tokenizer, text: str, max_length: int) -> dict:
+def head_fraction_of(model) -> float | None:
+    """The head share for head+tail truncation the model was trained with, else None (head only)."""
+    cfg = getattr(model, "cfg", None)
+    if cfg is not None and getattr(cfg, "truncation_strategy", None) == "head_tail":
+        return float(cfg.head_fraction)
+    return None
+
+
+def _window(n_tokens: int, max_length: int, head_fraction: float | None) -> list[int]:
+    """Indices of the body tokens the model reads, matching ClinicalNoteDataset._encode."""
+    body = max_length - 2
+    if n_tokens <= body:
+        return list(range(n_tokens))
+    if head_fraction is None:
+        return list(range(body))
+    n_head = int(body * head_fraction)
+    n_tail = body - n_head
+    return list(range(n_head)) + list(range(n_tokens - n_tail, n_tokens))
+
+
+def encode_for_model(tokenizer, texts, max_length: int, head_fraction: float | None = None) -> dict:
+    """Batch-encode texts exactly as the model was trained to read them, padded to a tensor.
+
+    With ``head_fraction`` set this reproduces the training-time head+tail
+    truncation; without it, plain head truncation.
+    """
+    if isinstance(texts, str):
+        texts = [texts]
+    rows = []
+    for text in texts:
+        ids = tokenizer(text, add_special_tokens=False, truncation=False)["input_ids"]
+        kept = [ids[i] for i in _window(len(ids), max_length, head_fraction)]
+        rows.append([tokenizer.cls_token_id] + kept + [tokenizer.sep_token_id])
+    width = max(len(r) for r in rows)
+    input_ids = torch.full((len(rows), width), tokenizer.pad_token_id, dtype=torch.long)
+    attention = torch.zeros((len(rows), width), dtype=torch.long)
+    for i, r in enumerate(rows):
+        input_ids[i, : len(r)] = torch.tensor(r, dtype=torch.long)
+        attention[i, : len(r)] = 1
+    return {"input_ids": input_ids, "attention_mask": attention}
+
+
+def encode_with_offsets(tokenizer, text: str, max_length: int, head_fraction: float | None = None) -> dict:
     """Tokenise once, keeping the character offsets the UI needs.
 
-    Truncation here is plain head truncation, because an explanation must
-    describe the exact input the model scored — the head/tail strategy used for
-    *training* would leave a gap in the middle of the highlighted note with no
-    honest way to render it. Callers that need full coverage of a long note use
-    the chunked path in :mod:`medxplain.explain.chunked`.
+    The tokens kept are exactly those the model reads: head+tail when the model
+    was trained that way (``head_fraction`` set), otherwise the head. When the
+    middle of a long note is skipped, ``unread_span`` gives its character range
+    so the UI can mark it as not read rather than leaving an unexplained gap.
     """
-    encoding = tokenizer(
-        text,
-        return_offsets_mapping=True,
-        truncation=True,
-        max_length=max_length,
-        return_tensors="pt",
-    )
-    offsets = [tuple(o) for o in encoding["offset_mapping"][0].tolist()]
-    token_strings = tokenizer.convert_ids_to_tokens(encoding["input_ids"][0])
+    full = tokenizer(text, add_special_tokens=False, truncation=False, return_offsets_mapping=True)
+    ids, offsets_all = full["input_ids"], [tuple(o) for o in full["offset_mapping"]]
+    keep = _window(len(ids), max_length, head_fraction)
+
+    input_ids = [tokenizer.cls_token_id] + [ids[i] for i in keep] + [tokenizer.sep_token_id]
+    offsets = [(0, 0)] + [offsets_all[i] for i in keep] + [(0, 0)]
+    truncated = len(ids) > max_length - 2
+
+    unread_span = None
+    if truncated:
+        gap = [i for i in range(1, len(keep)) if keep[i] != keep[i - 1] + 1]
+        if gap:  # head+tail: the middle was skipped
+            last_head, first_tail = keep[gap[0] - 1], keep[gap[0]]
+            unread_span = (int(offsets_all[last_head][1]), int(offsets_all[first_tail][0]))
+        else:  # head only: everything after the window was skipped
+            unread_span = (int(offsets_all[keep[-1]][1]), len(text))
+
     return {
-        "input_ids": encoding["input_ids"],
-        "attention_mask": encoding["attention_mask"],
+        "input_ids": torch.tensor([input_ids], dtype=torch.long),
+        "attention_mask": torch.ones((1, len(input_ids)), dtype=torch.long),
         "offsets": offsets,
-        "tokens": token_strings,
-        "truncated": bool(
-            len(tokenizer(text, add_special_tokens=False)["input_ids"]) > max_length - 2
-        ),
+        "tokens": tokenizer.convert_ids_to_tokens(input_ids),
+        "truncated": truncated,
+        "unread_span": unread_span,
     }
 
 

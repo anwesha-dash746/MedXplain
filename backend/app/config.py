@@ -22,8 +22,24 @@ class Settings(BaseModel):
     results_root: Path = REPO_ROOT / "results"
     examples_path: Path = REPO_ROOT / "data" / "processed" / "examples.json"
     experiment_config: Path = REPO_ROOT / "configs" / "default.yaml"
+    #: historical case library for the clinical workspace (the processed corpus)
+    case_library_path: Path = REPO_ROOT / "data" / "processed" / "corpus.parquet"
+    #: external Peer Consult URL; unused since Peer Consult is built in (kept for compatibility)
+    peer_consult_url: str = ""
 
-    default_model: str = "clinicalbert"
+    #: Peer Consult storage, encryption and policy
+    peer_db_path: Path = REPO_ROOT / "data" / "peer_consult" / "peer_consult.db"
+    peer_key: str | None = None  # MEDXPLAIN_PEER_KEY (Fernet key); falls back to a dev key file
+    peer_key_path: Path = REPO_ROOT / "data" / "peer_consult" / ".dev_encryption_key"
+    peer_verifier: str = "none"
+    #: honour development verification overrides; never enable in a shared deployment
+    peer_allow_dev_verification: bool = False
+    peer_session_hours: float = 12.0
+    peer_retention_days: int = 365
+    peer_password_iterations: int = 310_000
+
+    #: preferred model; falls back to clinicalbert / the first available at startup
+    default_model: str = "clinicalbert_512"
     default_method: str = "attention_rollout"
     device: str = "cpu"
 
@@ -37,7 +53,8 @@ class Settings(BaseModel):
     shap_max_evals: int = 200
     shap_max_evals_ceiling: int = 800
     ig_steps: int = 16
-    occlusion_max_words: int = 200
+    #: words occlusion masks one at a time; 350 covers the longest note in the corpus (344 words)
+    occlusion_max_words: int = 350
 
     prediction_cache_size: int = 128
     history_size: int = 50
@@ -60,6 +77,15 @@ class Settings(BaseModel):
             checkpoint_root=path_env("MEDXPLAIN_CHECKPOINT_ROOT", base.checkpoint_root),
             results_root=path_env("MEDXPLAIN_RESULTS_ROOT", base.results_root),
             examples_path=path_env("MEDXPLAIN_EXAMPLES", base.examples_path),
+            case_library_path=path_env("MEDXPLAIN_CASE_LIBRARY", base.case_library_path),
+            peer_consult_url=os.environ.get("MEDXPLAIN_PEER_CONSULT_URL", base.peer_consult_url),
+            peer_db_path=path_env("MEDXPLAIN_PEER_DB", base.peer_db_path),
+            peer_key=os.environ.get("MEDXPLAIN_PEER_KEY") or None,
+            peer_key_path=path_env("MEDXPLAIN_PEER_KEY_PATH", base.peer_key_path),
+            peer_verifier=os.environ.get("MEDXPLAIN_PEER_VERIFIER", base.peer_verifier),
+            peer_allow_dev_verification=os.environ.get("MEDXPLAIN_PEER_ALLOW_DEV_VERIFICATION", "0")
+            in ("1", "true", "yes"),
+            peer_retention_days=int(os.environ.get("MEDXPLAIN_PEER_RETENTION_DAYS", base.peer_retention_days)),
             default_model=os.environ.get("MEDXPLAIN_DEFAULT_MODEL", base.default_model),
             default_method=os.environ.get("MEDXPLAIN_DEFAULT_METHOD", base.default_method),
             device=os.environ.get("MEDXPLAIN_DEVICE", base.device),

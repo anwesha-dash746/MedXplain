@@ -24,6 +24,7 @@ from medxplain.config import load_config, parse_overrides, save_config
 from medxplain.data.preprocess import PreprocessConfig, clean_note, note_length_stats
 from medxplain.data.splits import SplitConfig, check_leakage, split_report, stratified_split
 from medxplain.data.synthetic import SyntheticCorpusConfig, generate_corpus, iter_examples
+from medxplain.offline import from_pretrained
 from medxplain.utils import env_report, get_logger, set_seed, timer, write_json
 
 LOGGER = get_logger("medxplain.scripts.dataset")
@@ -179,7 +180,7 @@ def main() -> None:
         from medxplain.models.transformer import MODEL_REGISTRY
 
         backbone = cfg.get_path("model.backbones", ["clinicalbert"])[0]
-        tokenizer = AutoTokenizer.from_pretrained(MODEL_REGISTRY.get(backbone, backbone))
+        tokenizer = from_pretrained(AutoTokenizer, MODEL_REGISTRY.get(backbone, backbone))
         report["token_length"] = note_length_stats(df["text"].tolist(), tokenizer)
         report["token_length"]["tokenizer"] = MODEL_REGISTRY.get(backbone, backbone)
     except Exception as exc:  # tokenizer download unavailable

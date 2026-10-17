@@ -63,6 +63,7 @@ def build_configs(cfg, backbone: str, seed: int) -> tuple[ModelConfig, TrainConf
         device=cfg.get_path("experiment.device", "auto"),
         seed=seed,
         max_train_steps=cfg.get_path("train.max_train_steps"),
+        gradient_accumulation_steps=int(cfg.get_path("train.gradient_accumulation_steps", 1)),
     )
     return model_cfg, train_cfg
 

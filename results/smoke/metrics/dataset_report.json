@@ -1,0 +1,81 @@
+{
+  "source": "synthetic",
+  "n_notes": 200,
+  "primary_outcome": "mortality",
+  "splits": {
+    "test": {
+      "n": 40,
+      "chars_mean": 1229.55,
+      "mortality_positive": 10,
+      "mortality_rate": 0.25,
+      "readmission_30d_positive": 9,
+      "readmission_30d_rate": 0.225
+    },
+    "train": {
+      "n": 120,
+      "chars_mean": 1265.1083333333333,
+      "mortality_positive": 30,
+      "mortality_rate": 0.25,
+      "readmission_30d_positive": 26,
+      "readmission_30d_rate": 0.21666666666666667
+    },
+    "val": {
+      "n": 40,
+      "chars_mean": 1339.975,
+      "mortality_positive": 9,
+      "mortality_rate": 0.225,
+      "readmission_30d_positive": 8,
+      "readmission_30d_rate": 0.2
+    }
+  },
+  "leakage_check": {
+    "duplicate_text_across_splits": 0,
+    "shared_groups": 0,
+    "ok": true
+  },
+  "preprocess": {
+    "replace_deid": true,
+    "collapse_whitespace": true,
+    "strip_rule_lines": true,
+    "strip_header": true,
+    "lowercase": false,
+    "expand_abbreviations": false,
+    "max_chars": null
+  },
+  "environment": {
+    "python": "3.11.9",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "processor": "Intel64 Family 6 Model 154 Stepping 4, GenuineIntel",
+    "numpy": "2.2.1",
+    "pandas": "2.3.2",
+    "sklearn": "1.8.0",
+    "torch": "2.8.0+cpu",
+    "transformers": "4.56.2",
+    "shap": "0.51.0",
+    "xgboost": "3.2.0",
+    "scipy": "1.14.1",
+    "cuda_available": false,
+    "device_name": "cpu"
+  },
+  "char_length": {
+    "mean": 1272.97,
+    "median": 1156.5,
+    "max": 2155
+  },
+  "gold_rationales": {
+    "mean_spans_per_note": 4.16,
+    "notes_with_spans": 200
+  },
+  "token_length": {
+    "n_sampled": 200,
+    "mean": 338.755,
+    "std": 63.89002249960474,
+    "median": 320.5,
+    "p90": 443.0,
+    "p95": 454.09999999999997,
+    "max": 515,
+    "frac_over_512": 0.005,
+    "frac_over_256": 0.935,
+    "tokenizer": "emilyalsentzer/Bio_ClinicalBERT"
+  }
+}

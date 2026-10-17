@@ -8,19 +8,22 @@ from fastapi import APIRouter, HTTPException, Request
 
 from backend.app.schemas import (
     BatchPredictRequest,
+    CalibrationInfo,
     ExplanationPayload,
     PredictRequest,
     PredictResponse,
     WordScore,
 )
+from backend.app.services.calibration import calibration_status
 from backend.app.services.inference import InferenceService, risk_band
 from medxplain.explain.payload import Explanation
 
 router = APIRouter(tags=["prediction"])
 
 CALIBRATION_NOTE = (
-    "This probability is the model's calibrated estimate on held-out data, not a "
-    "clinical determination. It is a decision-support signal and must be read "
+    "This score is the model's output for this note, not a clinical determination. "
+    "Whether it can be read as a percentage chance depends on the calibration "
+    "evidence in `calibration`. It is a decision-support signal and must be read "
     "alongside the note itself."
 )
 
@@ -111,6 +114,13 @@ def predict(payload: PredictRequest, request: Request) -> PredictResponse:
         decision_threshold=outcome.threshold,
         risk_band=risk_band(outcome.probability, outcome.threshold),
         calibration_note=CALIBRATION_NOTE,
+        calibration=CalibrationInfo(
+            **calibration_status(
+                service.settings.results_root,
+                outcome.model.key,
+                request.app.state.registry.describe(outcome.model.key).get("seed"),
+            )
+        ),
         explanations=explanations,
         n_chars=outcome.n_chars,
         n_tokens=outcome.n_tokens,

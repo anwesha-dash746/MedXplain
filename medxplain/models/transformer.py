@@ -22,6 +22,8 @@ import torch.nn.functional as F
 from torch import nn
 from transformers import AutoConfig, AutoModel, AutoTokenizer
 
+from medxplain.offline import from_pretrained
+
 #: Short names used throughout configs, scripts and the API, mapped to HF ids.
 MODEL_REGISTRY: dict[str, str] = {
     "clinicalbert": "emilyalsentzer/Bio_ClinicalBERT",
@@ -65,10 +67,14 @@ class ModelConfig:
 
 
 def load_backbone(cfg: ModelConfig):
-    """Load encoder + tokenizer for ``cfg`` (cached by HuggingFace on disk)."""
-    tokenizer = AutoTokenizer.from_pretrained(cfg.hf_id)
-    hf_config = AutoConfig.from_pretrained(cfg.hf_id)
-    encoder = AutoModel.from_pretrained(cfg.hf_id, config=hf_config)
+    """Load encoder + tokenizer for ``cfg``.
+
+    Goes through :mod:`medxplain.offline` so a machine with the weights already
+    in the HuggingFace cache but no route to the hub still loads them.
+    """
+    tokenizer = from_pretrained(AutoTokenizer, cfg.hf_id)
+    hf_config = from_pretrained(AutoConfig, cfg.hf_id)
+    encoder = from_pretrained(AutoModel, cfg.hf_id, config=hf_config)
     return encoder, tokenizer, hf_config
 
 

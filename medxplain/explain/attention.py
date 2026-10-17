@@ -31,6 +31,7 @@ from medxplain.explain.payload import (
     aggregate_to_words,
     build_token_attributions,
     encode_with_offsets,
+    head_fraction_of,
     normalise,
 )
 
@@ -138,7 +139,7 @@ class AttentionExplainer:
         self.word_reduction = word_reduction
 
     def explain(self, text: str, target: int | None = None) -> Explanation:
-        enc = encode_with_offsets(self.tokenizer, text, self.max_length)
+        enc = encode_with_offsets(self.tokenizer, text, self.max_length, head_fraction_of(self.model))
         input_ids = enc["input_ids"].to(self.device)
         attention_mask = enc["attention_mask"].to(self.device)
 
@@ -176,6 +177,7 @@ class AttentionExplainer:
             probability=probability,
             predicted_label=predicted,
             meta={
+                "unread_span": enc["unread_span"],
                 "head_fusion": self.head_fusion,
                 "discard_ratio": self.discard_ratio,
                 "truncated": enc["truncated"],

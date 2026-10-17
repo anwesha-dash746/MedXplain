@@ -1,0 +1,13 @@
+\begin{table}[t]
+\centering
+\caption{Explanation faithfulness on 3 held-out notes with Bio_ClinicalBERT. Comprehensiveness and sufficiency are averaged over $k \in \{1,5,10,20,50\}\%$ of tokens; `vs. random' is comprehensiveness minus that of a random explanation of the same size.}
+\label{tab:faithfulness}
+\begin{tabular}{lrrrrr}
+\toprule
+Method & Compreh. $\uparrow$ & Suffic. $\downarrow$ & vs. random $\uparrow$ & Del. AUC $\downarrow$ & s/note \\
+\midrule
+Attention rollout & 0.007 $\pm$ 0.008 & 0.113 $\pm$ 0.256 & 0.006 $\pm$ 0.003 & 0.499 & 0.3 \\
+Occlusion & -0.002 $\pm$ 0.007 & 0.106 $\pm$ 0.284 & -0.007 $\pm$ 0.010 & 0.518 & 11.4 \\
+\bottomrule
+\end{tabular}
+\end{table}

@@ -20,7 +20,7 @@ from backend.app.config import Settings
 from backend.app.services.registry import LoadedModel, ModelRegistry
 from medxplain.data.preprocess import PreprocessConfig, clean_note
 from medxplain.explain import METHOD_DESCRIPTIONS, build_explainer
-from medxplain.explain.payload import Explanation
+from medxplain.explain.payload import Explanation, encode_for_model, head_fraction_of
 from medxplain.utils import get_logger
 
 LOGGER = get_logger("medxplain.api.inference")
@@ -212,20 +212,22 @@ class InferenceService:
         enc = entry.tokenizer(cleaned, add_special_tokens=False, truncation=False)
         n_tokens = len(enc["input_ids"])
         truncated = n_tokens > entry.max_length - 2
+        head_fraction = head_fraction_of(entry.model)
         if truncated:
             warnings.append(
-                f"The note is {n_tokens} tokens; this model reads {entry.max_length}. "
-                "The score and highlights cover the truncated window only."
+                f"The note is {n_tokens} tokens; this model reads {entry.max_length - 2}. "
+                + (
+                    "It read the beginning and the end, as it was trained to; the middle (greyed out "
+                    "in the highlighted note) was not read."
+                    if head_fraction is not None
+                    else "Only the beginning was read; the rest (greyed out) was not."
+                )
             )
 
         # score once, then explain — so every explanation describes the same number
         with torch.no_grad():
-            model_inputs = entry.tokenizer(
-                cleaned,
-                return_tensors="pt",
-                truncation=True,
-                max_length=entry.max_length,
-            )
+            # same truncation as training, so the served score matches the evaluated model
+            model_inputs = encode_for_model(entry.tokenizer, cleaned, entry.max_length, head_fraction)
             probs = entry.model.predict_proba(
                 model_inputs["input_ids"].to(self.settings.device),
                 model_inputs["attention_mask"].to(self.settings.device),

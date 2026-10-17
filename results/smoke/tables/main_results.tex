@@ -1,0 +1,13 @@
+\begin{table}[t]
+\centering
+\caption{Held-out test performance on mortality ($n=40$, prevalence 0.250). Transformer rows are mean $\pm$ SD over random seeds; $p$-values are paired-bootstrap comparisons against the best model, Holm-adjusted.}
+\label{tab:main}
+\begin{tabular}{lrrrrr}
+\toprule
+Model & AUROC & AUPRC & F1 & Brier & $p$ (Holm) \\
+\midrule
+TF-IDF + LR & 0.767 & 0.651 & 0.737 & 0.202 & 0.360 \\
+Bio_ClinicalBERT & 0.643 & 0.532 & 0.438 & 0.199 & -- \\
+\bottomrule
+\end{tabular}
+\end{table}

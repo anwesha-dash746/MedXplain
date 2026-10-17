@@ -1,6 +1,7 @@
 "use client";
 
 import type { PredictResponse } from "@/lib/types";
+import { isCalibrated } from "./PlainLanguage";
 
 const BAND_COLOR: Record<string, string> = {
   low: "#0f9d76",
@@ -27,6 +28,8 @@ const BAND_LABEL: Record<string, string> = {
 export function RiskGauge({ result }: { result: PredictResponse }) {
   const { probability, decision_threshold: threshold, risk_band: band } = result;
   const color = BAND_COLOR[band] ?? "#64748b";
+  // Without calibration evidence the arc is a ranking position, not a percentage.
+  const calibrated = isCalibrated(result);
 
   const radius = 92;
   const stroke = 18;
@@ -36,7 +39,7 @@ export function RiskGauge({ result }: { result: PredictResponse }) {
 
   return (
     <div className="flex flex-col items-center">
-      <svg width="220" height="128" viewBox="0 0 220 128" role="img" aria-label={`Risk ${(probability * 100).toFixed(1)} percent`}>
+      <svg width="220" height="128" viewBox="0 0 220 128" role="img" aria-label={calibrated ? `Risk ${(probability * 100).toFixed(1)} percent` : `${BAND_LABEL[band] ?? band} model score`}>
         <path
           d={arcPath(cx, cy, radius)}
           fill="none"
@@ -60,11 +63,11 @@ export function RiskGauge({ result }: { result: PredictResponse }) {
           strokeWidth={2.5}
           strokeLinecap="round"
         />
-        <text x={cx} y={cy - 26} textAnchor="middle" className="fill-slate-900" style={{ fontSize: 34, fontWeight: 700 }}>
-          {(probability * 100).toFixed(1)}%
+        <text x={cx} y={cy - 26} textAnchor="middle" className="fill-slate-900" style={{ fontSize: calibrated ? 34 : 24, fontWeight: 700 }}>
+          {calibrated ? `${(probability * 100).toFixed(1)}%` : BAND_LABEL[band] ?? band}
         </text>
         <text x={cx} y={cy - 6} textAnchor="middle" className="fill-slate-500" style={{ fontSize: 11 }}>
-          predicted risk
+          {calibrated ? "predicted risk" : "model score (not a %)"}
         </text>
       </svg>
 
@@ -75,14 +78,19 @@ export function RiskGauge({ result }: { result: PredictResponse }) {
         >
           {BAND_LABEL[band] ?? band} risk
         </span>
-        <span className="text-xs text-slate-500">
-          threshold {(threshold * 100).toFixed(1)}%
-        </span>
+        {calibrated && (
+          <span className="text-xs text-slate-500">
+            alert at {(threshold * 100).toFixed(1)}%
+          </span>
+        )}
       </div>
 
       <p className="mt-2 text-center text-xs text-slate-500">
-        {result.predicted_label === 1 ? "Above" : "Below"} the operating point selected on the
-        validation split for {result.outcome}.
+        {result.predicted_label === 1
+          ? "Above the model's alert level, so this patient is flagged."
+          : "Below the model's alert level, so this patient is not flagged."}
+        <br />
+        The black tick on the dial marks the alert level.
       </p>
     </div>
   );

@@ -32,7 +32,9 @@ from medxplain.explain.payload import (
     Explanation,
     aggregate_to_words,
     build_token_attributions,
+    encode_for_model,
     encode_with_offsets,
+    head_fraction_of,
     normalise,
 )
 from medxplain.utils import get_logger
@@ -83,13 +85,7 @@ class ShapExplainer:
         with torch.no_grad():
             for i in range(0, len(texts), self.batch_size):
                 batch = texts[i : i + self.batch_size]
-                enc = self.tokenizer(
-                    batch,
-                    return_tensors="pt",
-                    padding=True,
-                    truncation=True,
-                    max_length=self.max_length,
-                )
+                enc = encode_for_model(self.tokenizer, list(batch), self.max_length, head_fraction_of(self.model))
                 logits = self.model(
                     enc["input_ids"].to(self.device), enc["attention_mask"].to(self.device)
                 )["logits"]
@@ -110,14 +106,13 @@ class ShapExplainer:
     def explain(self, text: str, target: int | None = None) -> Explanation:
         explainer = self._explainer or self._build()
 
-        # SHAP tokenises the raw string itself; we truncate first so the values it
-        # returns describe exactly the span the model actually scored.
-        enc = encode_with_offsets(self.tokenizer, text, self.max_length)
-        if enc["truncated"]:
-            keep_to = max((e for _, e in enc["offsets"] if e > 0), default=len(text))
-            scored_text = text[:keep_to]
-        else:
-            scored_text = text
+        # SHAP tokenises the raw string itself. With head-only truncation the tail
+        # is cut off first so the values describe exactly what the model scored;
+        # with head+tail the whole text is passed, and words in the unread middle
+        # receive (correctly) zero attribution because _predict never reads them.
+        enc = encode_with_offsets(self.tokenizer, text, self.max_length, head_fraction_of(self.model))
+        unread = enc["unread_span"]
+        scored_text = text[: unread[0]] if unread and unread[1] >= len(text) else text
 
         values = explainer([scored_text], max_evals=self.max_evals, silent=self.silent)
         shap_tokens = list(values.data[0])
@@ -159,6 +154,7 @@ class ShapExplainer:
             probability=probability,
             predicted_label=predicted,
             meta={
+                "unread_span": enc["unread_span"],
                 "max_evals": self.max_evals,
                 "output_space": self.output_space,
                 "mask_token": self.mask_token,
@@ -205,12 +201,9 @@ class OcclusionExplainer:
         out: list[float] = []
         with torch.no_grad():
             for i in range(0, len(texts), self.batch_size):
-                enc = self.tokenizer(
-                    list(texts[i : i + self.batch_size]),
-                    return_tensors="pt",
-                    padding=True,
-                    truncation=True,
-                    max_length=self.max_length,
+                enc = encode_for_model(
+                    self.tokenizer, list(texts[i : i + self.batch_size]), self.max_length,
+                    head_fraction_of(self.model),
                 )
                 logits = self.model(
                     enc["input_ids"].to(self.device), enc["attention_mask"].to(self.device)
@@ -221,10 +214,18 @@ class OcclusionExplainer:
     def explain(self, text: str, target: int | None = None) -> Explanation:
         import re
 
-        enc = encode_with_offsets(self.tokenizer, text, self.max_length)
+        enc = encode_with_offsets(self.tokenizer, text, self.max_length, head_fraction_of(self.model))
         mask = self.tokenizer.mask_token or "[MASK]"
 
-        spans = [(m.group(0), m.start(), m.end()) for m in re.finditer(r"\S+", text)][: self.max_words]
+        # occlude only words the model actually reads: the unread middle (or tail)
+        # cannot change the score, so spending evaluations on it would only crowd
+        # out words that can
+        unread = enc["unread_span"]
+        spans = [
+            (m.group(0), m.start(), m.end())
+            for m in re.finditer(r"\S+", text)
+            if not (unread and m.start() >= unread[0] and m.end() <= unread[1])
+        ][: self.max_words]
         variants = [text[:s] + mask + text[e:] for _, s, e in spans]
 
         base = float(self._score([text])[0])
@@ -251,6 +252,7 @@ class OcclusionExplainer:
             probability=float(probs[1]),
             predicted_label=int(probs.argmax()),
             meta={
+                "unread_span": enc["unread_span"],
                 "n_model_evaluations": len(variants) + 1,
                 "base_logit": base,
                 "truncated": enc["truncated"],

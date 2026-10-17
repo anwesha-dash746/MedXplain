@@ -4,6 +4,7 @@ import { useState } from "react";
 import { HighlightedNote, HighlightLegend } from "./HighlightedNote";
 import { ImportanceChart } from "./ImportanceChart";
 import { RiskGauge } from "./RiskGauge";
+import { HowToRead, PlainRiskSummary, isCalibrated } from "./PlainLanguage";
 import type { PredictResponse } from "@/lib/types";
 
 interface Props {
@@ -20,7 +21,7 @@ export function ResultPanel({ result, noteText }: Props) {
     <div className="space-y-4 animate-fade-in">
       <div className="card">
         <div className="card-header">
-          <h2 className="card-title">Predicted {result.outcome}</h2>
+          <h2 className="card-title">Risk of dying during this hospital stay</h2>
           <span className="text-xs text-slate-400">
             {result.model_display_name} · {result.inference_ms.toFixed(0)} ms
           </span>
@@ -28,14 +29,11 @@ export function ResultPanel({ result, noteText }: Props) {
         <div className="grid gap-4 p-5 md:grid-cols-[240px_1fr]">
           <RiskGauge result={result} />
           <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <Stat label="Probability" value={`${(result.probability * 100).toFixed(1)}%`} />
-              <Stat label="Threshold" value={`${(result.decision_threshold * 100).toFixed(1)}%`} />
-              <Stat label="Note tokens" value={result.n_tokens.toLocaleString()} />
-              <Stat label="Characters" value={result.n_chars.toLocaleString()} />
-            </div>
+            <PlainRiskSummary result={result} />
             <p className="rounded-lg bg-slate-50 p-3 text-xs leading-relaxed text-slate-600">
-              {result.calibration_note}
+              <strong>Important:</strong> this is an estimate from a computer model trained on past
+              hospital notes. It supports clinical decisions but does not make them, and it should
+              always be read alongside the note itself and the patient in front of you.
             </p>
             {result.warnings.map((warning, i) => (
               <div
@@ -46,6 +44,34 @@ export function ResultPanel({ result, noteText }: Props) {
                 <span>{warning}</span>
               </div>
             ))}
+            <details className="group rounded-lg border border-slate-200 text-xs">
+              <summary className="cursor-pointer select-none px-3 py-2 font-medium text-slate-500 hover:text-slate-700">
+                Technical details
+              </summary>
+              <div className="space-y-2 border-t border-slate-100 p-3">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <Stat
+                    label={isCalibrated(result) ? "Probability" : "Model score (uncalibrated)"}
+                    value={`${(result.probability * 100).toFixed(1)}%`}
+                  />
+                  <Stat label="Threshold" value={`${(result.decision_threshold * 100).toFixed(1)}%`} />
+                  <Stat label="Note tokens" value={result.n_tokens.toLocaleString()} />
+                  <Stat label="Characters" value={result.n_chars.toLocaleString()} />
+                </div>
+                <p className="leading-relaxed text-slate-500">{result.calibration_note}</p>
+                <p className="leading-relaxed text-slate-500">
+                  <strong>Calibration:</strong>{" "}
+                  {result.calibration?.summary ?? "Calibration status was not reported by the API."}
+                  {result.calibration?.evaluated && (
+                    <> (criteria: {result.calibration.criteria}; checkpoint seed {result.calibration.seed ?? "unknown"})</>
+                  )}
+                </p>
+                <p className="leading-relaxed text-slate-500">
+                  The threshold (alert level) was chosen on validation data, not on the test set.
+                  &ldquo;Tokens&rdquo; are the word pieces the model reads.
+                </p>
+              </div>
+            </details>
           </div>
         </div>
       </div>
@@ -102,7 +128,12 @@ export function ResultPanel({ result, noteText }: Props) {
                 <div className="card-header">
                   <h2 className="card-title">How to read this</h2>
                 </div>
-                <div className="space-y-2 p-4 text-xs leading-relaxed text-slate-600">
+                <HowToRead explanation={explanation} />
+                <details className="border-t border-slate-100 text-xs text-slate-600">
+                  <summary className="cursor-pointer select-none px-4 py-2 font-medium text-slate-500 hover:text-slate-700">
+                    Technical details
+                  </summary>
+                  <div className="space-y-2 px-4 pb-4 leading-relaxed">
                   <p>{explanation.description}</p>
                   <dl className="grid grid-cols-2 gap-x-3 gap-y-1 border-t border-slate-100 pt-2 text-[11px]">
                     <dt className="text-slate-400">Model evaluations</dt>
@@ -129,7 +160,8 @@ export function ResultPanel({ result, noteText }: Props) {
                       </>
                     )}
                   </dl>
-                </div>
+                  </div>
+                </details>
               </div>
             </div>
           </div>

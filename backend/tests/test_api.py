@@ -52,6 +52,11 @@ def client(tmp_path_factory, request):
             checkpoint_root=checkpoint_root,
             results_root=tmp_path_factory.mktemp("results"),
             examples_path=Path("data/processed/examples.json"),
+            # no case library: exercises the honest empty state of /clinical/analyze
+            case_library_path=checkpoint_root / "missing_corpus.parquet",
+            peer_db_path=checkpoint_root / "peer.db",
+            peer_key_path=checkpoint_root / "peer.key",
+            peer_password_iterations=1000,
             default_model="clinicalbert",
             default_method="attention_rollout",
             device="cpu",
@@ -237,3 +242,44 @@ class TestHistory:
         client.post("/api/predict", json={"text": NOTE})
         client.delete("/api/history")
         assert client.get("/api/history").json() == []
+
+
+class TestCalibrationAndClinicalWorkspace:
+    def test_predict_reports_calibration_status_without_claiming_it(self, client):
+        body = client.post("/api/predict", json={"text": NOTE}).json()
+        calibration = body["calibration"]
+        # the stub results root has no evaluation files, so nothing may be claimed
+        assert calibration["evaluated"] is False
+        assert calibration["well_calibrated"] is False
+        assert "calibrated estimate" not in body["calibration_note"]
+
+    def test_clinical_analysis_quotes_the_submitted_note(self, client):
+        body = client.post("/api/clinical/analyze", json={"text": NOTE}).json()
+        for field in body["case_summary"]["fields"]:
+            for ev in field["evidence"]:
+                assert NOTE[ev["start"]:ev["end"]] == ev["text"]
+        assert body["case_id"]
+        assert body["disclaimer"]
+        assert all(s["basis"] for s in body["ai_suggestions"])
+
+    def test_clinical_review_has_the_eight_items_with_allowed_statuses(self, client):
+        body = client.post("/api/clinical/analyze", json={"text": NOTE}).json()
+        items = body["documentation_review"]["items"]
+        assert len(items) == 8
+        allowed = {"documented", "not_found", "needs_verification", "not_applicable"}
+        assert {i["status"] for i in items} <= allowed
+
+    def test_missing_case_library_is_reported_not_invented(self, client):
+        body = client.post("/api/clinical/analyze", json={"text": NOTE}).json()
+        similar = body["similar_cases"]
+        assert similar["available"] is False
+        assert similar["reason"]
+        assert similar["data_needed"]
+        assert "outcomes" not in similar and "recommendations" not in similar
+
+    def test_peer_consult_link_carries_no_case_content(self, client):
+        body = client.post("/api/clinical/analyze", json={"text": NOTE}).json()
+        assert body["peer_consult"] == {"available": True, "url": None}
+
+    def test_clinical_analysis_rejects_a_too_short_note(self, client):
+        assert client.post("/api/clinical/analyze", json={"text": "short"}).status_code == 422

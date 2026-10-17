@@ -211,3 +211,49 @@ class TestEncoding:
         for word in explanation.words:
             if word.token_indices:
                 assert long_text[word.start : word.end] == word.text
+
+
+class TestTrainingMatchedTruncation:
+    """Serving must read a long note exactly as training did (head + tail)."""
+
+    LONG = ("the patient was in septic shock and required vasopressor support . " * 6
+            + "hospital course stable . " * 6
+            + "discharged home with follow up , no complications . " * 6)
+
+    def test_served_ids_equal_training_ids(self, tiny_model):
+        from medxplain.data.dataset import ClinicalNoteDataset
+        from medxplain.explain.payload import encode_for_model, encode_with_offsets
+
+        _, tokenizer = tiny_model
+        trained = ClinicalNoteDataset([self.LONG], None, tokenizer, max_length=32,
+                                      truncation_strategy="head_tail", head_fraction=0.35)[0]["input_ids"]
+        served = encode_for_model(tokenizer, self.LONG, 32, head_fraction=0.35)["input_ids"][0].tolist()
+        explained = encode_with_offsets(tokenizer, self.LONG, 32, head_fraction=0.35)["input_ids"][0].tolist()
+        assert served == trained == explained
+
+    def test_unread_span_marks_the_skipped_middle(self, tiny_model):
+        from medxplain.explain.payload import encode_with_offsets
+
+        _, tokenizer = tiny_model
+        enc = encode_with_offsets(tokenizer, self.LONG, 32, head_fraction=0.35)
+        start, end = enc["unread_span"]
+        assert 0 < start < end < len(self.LONG)
+        # every kept token lies outside the unread span, and its offsets index the text
+        for (s, e), tok in zip(enc["offsets"][1:-1], enc["tokens"][1:-1]):
+            assert e <= start or s >= end
+            assert self.LONG[s:e].lower().replace(" ", "") == tok.replace("##", "")
+
+    def test_short_note_has_no_unread_span(self, tiny_model):
+        from medxplain.explain.payload import encode_with_offsets
+
+        _, tokenizer = tiny_model
+        assert encode_with_offsets(tokenizer, "the patient was stable .", 32, head_fraction=0.35)["unread_span"] is None
+
+    def test_explainers_report_the_unread_span(self, tiny_model):
+        model, tokenizer = tiny_model
+        for method in ("attention_rollout", "occlusion"):
+            explainer = build_explainer(method, model, tokenizer, device="cpu", max_length=32)
+            explanation = explainer.explain(self.LONG)
+            start, end = explanation.meta["unread_span"]
+            # nothing inside the unread middle is credited
+            assert all(abs(w.score) < 1e-9 for w in explanation.words if w.start >= start and w.end <= end)

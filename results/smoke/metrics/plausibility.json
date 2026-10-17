@@ -1,0 +1,81 @@
+{
+  "model": "clinicalbert",
+  "outcome": "mortality",
+  "n_notes": 3,
+  "methods": {
+    "attention_rollout": {
+      "n_notes": 3,
+      "n_skipped": 0,
+      "token_precision": {
+        "mean": 0.0,
+        "std": 0.0,
+        "n": 3
+      },
+      "token_recall": {
+        "mean": 0.0,
+        "std": 0.0,
+        "n": 3
+      },
+      "token_f1": {
+        "mean": 0.0,
+        "std": 0.0,
+        "n": 3
+      },
+      "rationale_auprc": {
+        "mean": 0.18461098398169337,
+        "std": 0.11192330855589987,
+        "n": 3
+      },
+      "rationale_auprc_baseline": {
+        "mean": 0.18461098398169337,
+        "std": 0.11192330855589987,
+        "n": 3
+      },
+      "off_rationale_mass": {
+        "mean": 1.0,
+        "std": 0.0,
+        "n": 3
+      }
+    },
+    "occlusion": {
+      "n_notes": 3,
+      "n_skipped": 0,
+      "token_precision": {
+        "mean": 0.0,
+        "std": 0.0,
+        "n": 3
+      },
+      "token_recall": {
+        "mean": 0.0,
+        "std": 0.0,
+        "n": 3
+      },
+      "token_f1": {
+        "mean": 0.0,
+        "std": 0.0,
+        "n": 3
+      },
+      "rationale_auprc": {
+        "mean": 0.18461098398169337,
+        "std": 0.11192330855589987,
+        "n": 3
+      },
+      "rationale_auprc_baseline": {
+        "mean": 0.18461098398169337,
+        "std": 0.11192330855589987,
+        "n": 3
+      },
+      "sign_agreement": {
+        "mean": 0.0,
+        "std": 0.0,
+        "n": 3
+      },
+      "off_rationale_mass": {
+        "mean": 1.0,
+        "std": 0.0,
+        "n": 3
+      }
+    }
+  },
+  "note": "Gold rationales come from the synthetic generator's recorded risk-factor spans. On a real cohort no such ground truth exists and plausibility is human-rated instead."
+}

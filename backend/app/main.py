@@ -9,6 +9,7 @@ Interactive API docs are at http://localhost:8000/docs.
 from __future__ import annotations
 
 import sys
+import threading
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -22,10 +23,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from backend.app.config import get_settings
-from backend.app.routers import meta, predict
+from backend.app.routers import clinical, meta, peer, predict
 from backend.app.routers.meta import History
 from backend.app.services.inference import InferenceService
+from backend.app.services.peer_service import build_peer_service
 from backend.app.services.registry import ModelRegistry
+from medxplain.clinical import CaseLibrary
 from medxplain.utils import get_logger
 
 LOGGER = get_logger("medxplain.api")
@@ -55,8 +58,26 @@ async def lifespan(app: FastAPI):
     app.state.registry = ModelRegistry(settings.checkpoint_root, device=settings.device)
     app.state.inference = InferenceService(app.state.registry, settings)
     app.state.history = History(settings.history_size)
+    app.state.case_library = CaseLibrary(
+        settings.case_library_path,
+        dataset_report_path=settings.results_root / "metrics" / "dataset_report.json",
+    )
+    # Building the TF-IDF index takes several seconds; do it off the request path.
+    threading.Thread(target=app.state.case_library._ensure_loaded, daemon=True).start()
+
+    app.state.peer = None
+    try:
+        app.state.peer = build_peer_service(settings)
+        app.state.peer.purge_finished(settings.peer_retention_days)
+    except Exception as exc:  # the rest of the API stays up; /peer reports unavailable
+        app.state.peer_error = str(exc)
+        LOGGER.exception("Peer Consult storage could not be initialised")
 
     available = app.state.registry.available()
+    if available and settings.default_model not in available:
+        fallback = "clinicalbert" if "clinicalbert" in available else available[0]
+        LOGGER.info("default model %s not installed; using %s", settings.default_model, fallback)
+        settings.default_model = fallback
     LOGGER.info("checkpoint root: %s", settings.checkpoint_root)
     LOGGER.info("models available: %s", available or "(none yet)")
 
@@ -108,6 +129,8 @@ async def missing_model_handler(request: Request, exc: FileNotFoundError) -> JSO
 
 app.include_router(predict.router, prefix="/api")
 app.include_router(meta.router, prefix="/api")
+app.include_router(clinical.router, prefix="/api")
+app.include_router(peer.router, prefix="/api")
 
 
 @app.get("/", include_in_schema=False)

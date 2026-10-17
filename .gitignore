@@ -13,8 +13,13 @@ data/raw/
 data/processed/*.parquet
 data/processed/examples.json
 
+# Peer Consult database and its development encryption key: case content, never commit.
+data/peer_consult/
+
 # Model checkpoints are hundreds of MB each; regenerate with scripts/02.
 results/checkpoints/
+# ...and in any separate run folder (e.g. results/clinicalbert_512/, results/smoke/)
+results/**/checkpoints/
 results/predictions/
 results/_calib/
 

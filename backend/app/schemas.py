@@ -106,6 +106,18 @@ class RiskBand(BaseModel):
     upper: float
 
 
+class CalibrationInfo(BaseModel):
+    """Whether the served checkpoint's scores may be read as probabilities."""
+
+    evaluated: bool
+    well_calibrated: bool
+    ece: float | None = None
+    brier_skill_score: float | None = None
+    seed: int | None = None
+    criteria: str
+    summary: str
+
+
 class PredictResponse(BaseModel):
     # 'model' is a real field name here (the backbone key); pydantic reserves the
     # model_ prefix by default, so the namespace guard is disabled explicitly.
@@ -126,6 +138,7 @@ class PredictResponse(BaseModel):
     )
     risk_band: str
     calibration_note: str
+    calibration: CalibrationInfo | None = None
     explanations: list[ExplanationPayload]
     n_chars: int
     n_tokens: int
@@ -184,6 +197,34 @@ class HealthResponse(BaseModel):
     models_available: list[str]
     default_model: str
     default_method: str
+
+
+class ClinicalAnalysisRequest(BaseModel):
+    text: str = Field(..., description="The discharge note to analyse, exactly as submitted.")
+
+
+class ClinicalAnalysisResponse(BaseModel):
+    """Clinical workspace payload.
+
+    Evidence objects carry ``start``/``end`` offsets into the submitted text.
+    Fields named ``interpretation`` are inferred, not quoted, and say so.
+    """
+
+    case_id: str = Field(..., description="Hash of the submitted text; ties the payload to that note.")
+    analysed_at: float
+    n_chars: int
+    sections_found: list[dict]
+    case_summary: dict
+    documentation_review: dict
+    follow_up: dict
+    similar_cases: dict
+    ai_suggestions: list[dict] = Field(
+        default_factory=list,
+        description="Rule-generated prompts (not historical records, not treatment advice), each with its basis.",
+    )
+    peer_consult: dict
+    disclaimer: str
+    compute_ms: float
 
 
 class ErrorResponse(BaseModel):
