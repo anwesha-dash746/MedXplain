@@ -374,7 +374,9 @@ The 512-token model scores all four surviving case-study patients at 0.03–0.09
 
 ### 11.6 Not yet available
 
-Faithfulness, stability, plausibility, human review and significance tests: **no results files exist**. The application shows these as "Not evaluated yet". Figures and LaTeX tables (`scripts/07_figures_tables.py`) have not been generated (`results/figures/` and `results/tables/` are empty).
+Faithfulness, stability, plausibility, human review and significance tests: **no results files exist for the real experiment**. The application shows these as "Not evaluated yet". Figures and LaTeX tables (`scripts/07_figures_tables.py`) have not been generated for it (`results/figures/` and `results/tables/` are empty).
+
+**Do not use `results/smoke/`.** That folder does contain faithfulness, stability, plausibility and significance results, plus figures and tables. They come from `configs/smoke.yaml`, a tiny automated test run on a handful of notes that only checks the pipeline runs end to end. They are not experimental results and must not be reported.
 
 ---
 
